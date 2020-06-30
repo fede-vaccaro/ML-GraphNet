@@ -4,10 +4,11 @@ import os
 
 
 def load_graph(dataset_name):
-    if dataset_name == 'cora' or dataset_name =='citeseer':
+    if dataset_name == 'cora' or dataset_name == 'citeseer':
         dataset_filename = 'datasets/' + dataset_name + "/{}.h5".format(dataset_name)
 
         if os.path.exists(dataset_filename):
+        # if False:
             print("Reading dataset '{}' from file".format(dataset_name))
             dataset_file = h5py.File(dataset_filename, 'r')
             A = dataset_file['A'][:]
@@ -25,7 +26,7 @@ def load_graph(dataset_name):
             content_txt = open('datasets/cora/cora.content', 'r')
 
             # convert cites into a dictionary
-            edges = {}
+            edges = []
             all_ids = set()
 
             for line in cites_txt.readlines():
@@ -34,40 +35,40 @@ def load_graph(dataset_name):
                 cited_paper = line_[0]
                 citing_paper = line_[1]
 
-                if citing_paper in edges.keys():
-                    edges[citing_paper] += [cited_paper]
-                else:
-                    edges[citing_paper] = [cited_paper]
+                edges += [(cited_paper, citing_paper)]
 
                 all_ids.add(citing_paper)
                 all_ids.add(cited_paper)
 
-            # convert content into features and labels
-            features = {}
-            labels = {}
-
-            # makes matrix A
             all_ids = list(all_ids)
 
+            edge_ids = []
+
+            # transforms id into indices
+            for ii, edge in enumerate(edges):
+                idx = all_ids.index(edge[0])
+                idy = all_ids.index(edge[1])
+
+                edge_ids += [(idx, idy)]
+
+            # makes matrix A
             dim = len(all_ids)
             A = np.zeros((dim, dim)).astype('int32')
 
-            for ii, id in enumerate(edges.keys()):
-                cited_ids = edges[id]
+            for edge in edge_ids:
+                ii = edge[0]
+                jj = edge[1]
+                A[ii, jj] = 1
 
-                # cites_ids to indices
-                for jj, cited in enumerate(cited_ids):
-                    index = all_ids.index(cited)
-                    cited_ids[jj] = index
-
-                for cited_idx in cited_ids:
-                    A[ii, cited_idx] += 1
             A += A.T
 
-            print("Number of edges: ", A.sum().sum()//2)
+            print("Number of edges: ", A.sum().sum() // 2)
             print("Number of nodes: ", dim)
             print("Is symmetric: ", np.allclose(A, A.T, rtol=1e-05, atol=1e-08))
 
+            # convert content into features and labels
+            features = {}
+            labels = {}
 
             all_labels = set()
 
@@ -77,8 +78,8 @@ def load_graph(dataset_name):
                 id = line_[0]
                 label = line_[-1]
                 feature = []
-
-                for x in line_[1:-1]:
+                str_feature = line_[1:-1]
+                for x in str_feature:
                     feature += [int(x)]
 
                 labels[id] = label
@@ -101,11 +102,11 @@ def load_graph(dataset_name):
 
             for ii, key in enumerate(list(features.keys())):
                 feat = np.array(features[key])
-                X[ii] = feat
+                idx = all_ids.index(key)
+                X[idx] = feat
 
                 label_idx = all_labels.index(labels[key])
-                L[ii, label_idx] = 1
-
+                L[idx, label_idx] = 1
 
             dataset_file = h5py.File(dataset_filename, 'w')
             dataset_file.create_dataset('A', data=A)
