@@ -5,6 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import utils as u
 
+
 class GraphMLP(nn.Module):
     def __init__(self, input_feature_size, n_classes, hidden_size=64):
         super().__init__()
@@ -24,6 +25,9 @@ class GraphMLP(nn.Module):
 
         return y
 
+    def reg(self, lambda_reg=0.0):
+        return 0.0
+
 
 class KipfAndWillingConv(nn.Module):
     def __init__(self, A, n_filters, n_features):
@@ -42,13 +46,10 @@ class KipfAndWillingConv(nn.Module):
 
     @staticmethod
     def compute_transform(A):
-        D_diag = torch.sum(A, dim=1).pow(-1)
+        D_diag = torch.sum(A, dim=1).pow(-0.5)
         D = torch.diag(D_diag)
 
-        # same as D_diag.pow(-0.5) and then
-        # D * A * D since both D and A are symmetric
-
-        out = D.mm(A)
+        out = D.mm(A).mm(D)
         return out
 
 
@@ -56,6 +57,7 @@ class GCNKipf(nn.Module):
     def __init__(self, A, n_filters, n_features, n_classes):
         super().__init__()
         self.conv1 = KipfAndWillingConv(A, n_filters, n_features)
+        self.conv2 = KipfAndWillingConv(A, n_filters, n_filters)
         self.out = KipfAndWillingConv(A, n_classes, n_filters)
 
     def forward(self, x, A=None):
@@ -73,3 +75,6 @@ class GCNKipf(nn.Module):
         out = F.softmax(x, dim=1)
 
         return out
+
+    def reg(self, lambda_reg=1e-5):
+        return self.conv1.filters.norm(p=2) * lambda_reg

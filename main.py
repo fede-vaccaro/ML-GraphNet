@@ -11,13 +11,16 @@ import time
 
 A, X, Y = load_graph('cora')
 
-seed = 2**31 - 1
+seed = (2**31 - 1)
+torch.random.manual_seed(seed//3)
+
+X = normalize(X.astype('float32'), 'l1')
 
 A = torch.tensor(A.astype('float32'))
 X = torch.tensor(X.astype('float32'))
 Y = torch.tensor(Y.astype('float32'))
 
-X = KipfAndWillingConv.compute_transform(X)
+print("Class distribution: ", Y.sum(dim=0))
 
 n_epochs = 300
 
@@ -60,7 +63,7 @@ for e in range(n_epochs):
     loss = criterion(out[train], train_labels)
 
     # add l2 reg on first layer
-    loss += model.conv1.filters.norm(p=2)*lambda_reg
+    loss += model.reg(lambda_reg)
 
     loss.backward()
     opt.step()
