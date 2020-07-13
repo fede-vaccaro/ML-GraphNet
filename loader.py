@@ -59,8 +59,9 @@ def load_graph(dataset_name):
                 ii = edge[0]
                 jj = edge[1]
                 A[ii, jj] = 1
+                A[jj, ii] = 1
 
-            A += A.T
+            #A += A.T
 
             print("Number of edges: ", A.sum().sum() // 2)
             print("Number of nodes: ", dim)

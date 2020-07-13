@@ -32,7 +32,7 @@ class GraphMLP(nn.Module):
 class KipfAndWillingConv(nn.Module):
     def __init__(self, A, n_filters, n_features):
         super().__init__()
-        transform = self.compute_transform(A + torch.eye(A.shape[0]))
+        transform = self.compute_transform(A)
         self.transform = u.dense_to_sparse(transform)
 
         self.filters = torch.nn.Parameter(torch.Tensor(n_features, n_filters), requires_grad=True)
@@ -53,11 +53,16 @@ class KipfAndWillingConv(nn.Module):
         return out
 
 
+def decode(x: torch.Tensor):
+    d = x.mm(x.t())
+    d = torch.sigmoid(d)
+    return d
+
+
 class GCNKipf(nn.Module):
     def __init__(self, A, n_filters, n_features, n_classes):
         super().__init__()
         self.conv1 = KipfAndWillingConv(A, n_filters, n_features)
-        self.conv2 = KipfAndWillingConv(A, n_filters, n_filters)
         self.out = KipfAndWillingConv(A, n_classes, n_filters)
 
     def forward(self, x, A=None):
@@ -78,3 +83,24 @@ class GCNKipf(nn.Module):
 
     def reg(self, lambda_reg=1e-5):
         return self.conv1.filters.norm(p=2) * lambda_reg
+
+
+class GCNAutoencoder(nn.Module):
+    def __init__(self, A, hidden_dim, n_features, code_dim):
+        super().__init__()
+        self.hidden = KipfAndWillingConv(A, hidden_dim, n_features)
+        self.encoder = KipfAndWillingConv(A, code_dim, hidden_dim)
+
+    def forward(self, x):
+        hidden = self.hidden(x)
+        hidden = F.relu(hidden)
+
+        hidden = F.dropout(hidden, p=0.5, training=self.training)
+
+        encoded = self.encoder(hidden)
+        prediction = decode(encoded)
+
+        return prediction
+
+    def reg(self, lambda_reg=1e-5):
+        return self.encoder.filters.norm(p=2) * lambda_reg
