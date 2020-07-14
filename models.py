@@ -47,6 +47,8 @@ class KipfAndWillingConv(nn.Module):
     @staticmethod
     def compute_transform(A):
         D_diag = torch.sum(A, dim=1).pow(-0.5)
+        D_diag[D_diag == float("Inf")] = 0
+
         D = torch.diag(D_diag)
 
         out = D.mm(A).mm(D)
@@ -104,3 +106,8 @@ class GCNAutoencoder(nn.Module):
 
     def reg(self, lambda_reg=1e-5):
         return self.encoder.filters.norm(p=2) * lambda_reg
+
+    def to(self, device):
+        super().to(device)
+        self.hidden.transform = self.hidden.transform.to(device)
+        self.encoder.transform = self.encoder.transform.to(device)

@@ -58,15 +58,18 @@ def load_graph(dataset_name):
             for edge in edge_ids:
                 ii = edge[0]
                 jj = edge[1]
+
+                # assert A[ii, jj] != 1, "indices: {}, {}; corresponding to ids {}, {}: ".format(ii, jj, all_ids[ii], all_ids[jj])
+                assert ii != jj
+
                 A[ii, jj] = 1
                 A[jj, ii] = 1
-
-            #A += A.T
 
             print("Number of edges: ", A.sum().sum() // 2)
             print("Number of nodes: ", dim)
             print("Is symmetric: ", np.allclose(A, A.T, rtol=1e-05, atol=1e-08))
-
+            # idx = i + j*n_col
+            print("max: ", np.max(A))
             # convert content into features and labels
             features = {}
             labels = {}
