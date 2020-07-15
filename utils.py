@@ -3,6 +3,8 @@ from sklearn.metrics import roc_auc_score, roc_curve, auc
 import numpy as np
 import matplotlib.pyplot as plt
 import random
+
+
 # plt.switch_backend('TkAgg') #TkAgg (instead Qt4Agg)
 
 
@@ -25,10 +27,19 @@ def test_acc(model, X, y, idx):
 def test_auc(model, X, A, idx, test=False):
     model.eval()
 
-    # fn = torch.sigmoid
-    fn = lambda x : x
+    fn = torch.sigmoid
+    # fn = lambda x : x
 
-    predicted = fn(model.forward(X)).view(-1)[idx].cpu().numpy()
+    a_cap = fn(model.forward(X))
+    predicted = a_cap.view(-1)[idx].cpu().numpy()
+
+    if test:
+        a_cap = a_cap.cpu().numpy()
+        a_cap[a_cap <= 0.75] = 0
+        a_cap[a_cap > 0.75] = 1
+
+        plt.matshow(a_cap)
+        plt.show()
 
     groundtruth = A.view(-1)[idx].cpu().numpy()
 
@@ -63,17 +74,24 @@ def dense_to_sparse(dense_matrix):
     return out
 
 
-def to_int_index(ls, n_cols):
-    out = []
-    for el in zip(ls[0], ls[1]):
-        out += [int(el[0] + el[1] * n_cols)]
-    return out
+def indices_from_2d_to_1d(indices_list, side):
+    # transforms a list of (i,j) indices (indices_list) from a matrix with shape (side,side)
+    # to a single element index k.
+    # equivalent to k = i + side*j
+    all_indices = np.arange(side ** 2).reshape((side, side))
+    indices = all_indices[indices_list].reshape(-1)
+    return indices
 
 
 def split_dataset(A, seed):
     A_integer = A.cpu().numpy().astype('int32')
 
     edges_indices = np.triu_indices(A.shape[0])
+
+    # deletes diagonal elements from datasets
+    mask = edges_indices[0] != edges_indices[1]
+    edges_indices = edges_indices[0][mask], edges_indices[1][mask]
+
     values = A_integer[edges_indices]
 
     arg_ones_values = np.argwhere(values > 0)
@@ -108,13 +126,15 @@ def split_dataset(A, seed):
     train_set_edge_indices = np.vstack((arg_ones_values[indices_train_ones], arg_zero_values[indices_train_zeros]))
 
     train = edges_indices[0][train_set_edge_indices], edges_indices[1][train_set_edge_indices]
-    train_ones = edges_indices[0][arg_ones_values[indices_train_ones]], edges_indices[1][arg_ones_values[indices_train_ones]]
+    train_ones = edges_indices[0][arg_ones_values[indices_train_ones]], edges_indices[1][
+        arg_ones_values[indices_train_ones]]
 
     val = edges_indices[0][val_set_edge_indices], edges_indices[1][val_set_edge_indices]
     val_ones = edges_indices[0][arg_ones_values[indices_val_ones]], edges_indices[1][arg_ones_values[indices_val_ones]]
 
     test = edges_indices[0][test_set_edge_indices], edges_indices[1][test_set_edge_indices]
-    test_ones = edges_indices[0][arg_ones_values[indices_test_ones]], edges_indices[1][arg_ones_values[indices_test_ones]]
+    test_ones = edges_indices[0][arg_ones_values[indices_test_ones]], edges_indices[1][
+        arg_ones_values[indices_test_ones]]
 
     # x = torch.tensor(A.data).numpy()
     # x *= 0
@@ -131,4 +151,5 @@ def split_dataset(A, seed):
     # plt.matshow(x)
     # plt.show()
 
-    return train_ones, to_int_index(train, A.shape[0]), to_int_index(val, A.shape[0]), to_int_index(test, A.shape[0])
+    return train_ones, indices_from_2d_to_1d(train, A.shape[0]), indices_from_2d_to_1d(val, A.shape[
+        0]), indices_from_2d_to_1d(test, A.shape[0])
