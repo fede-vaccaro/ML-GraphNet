@@ -27,24 +27,14 @@ torch.random.manual_seed(seed // 3)
 
 A = torch.tensor(A.astype('float32'))
 X = torch.tensor(X.astype('float32'))
-# X = torch.eye(X.shape[0])
-Y = torch.tensor(Y.astype('float32'))
-
-# print("Class distribution: ", Y.sum(dim=0))
 
 n_epochs = 200
 
 feat_size = X.shape[1]
 n_classes = Y.shape[1]
 
-# model = GraphMLP(input_feature_size=feat_size, n_classes=n_classes)
-# model = GCNKipf(n_features=feat_size, n_classes=n_classes, A=A, n_filters=16)
-
 device = torch.device("cuda")
 
-
-# criterion = torch.nn.CrossEntropyLoss()
-# criterion = F.binary_cross_entropy_with_logits
 criterion = F.binary_cross_entropy
 
 val_history = []
@@ -54,11 +44,6 @@ not_improving_counter = 0
 not_improving_max_step = n_epochs
 
 print("Not improving epsilon: ", val_eps_early_stop)
-
-#  TODO: al momento il punteggio è altissimo perchè fa presumibilmente training sul test set. il motivo è che viene \
-#   campionato randomicamente un elemento (i,j) dalla matrice, ignorando se (j,i) finisce nel test set. si ricorda  \
-#   che per formulazione anche la matrice di ricostruzione è simmetrica, quindi se viene fatto backpropagation su   \
-#   (i,j) viene anche fatto su (j,i)
 
 train_, train, val, test = u.split_dataset(A, seed=seed)
 
@@ -72,7 +57,8 @@ A_model = A_model.type(torch.float32)
 # plt.matshow(A_model.numpy())
 # plt.show()
 
-model = GCNAutoencoder(n_features=feat_size, hidden_dim=32, code_dim=16, A=A_model)
+# model = GCNAutoencoder(n_features=feat_size, hidden_dim=32, code_dim=16, A=A_model)
+model = GcnVAE(n_features=feat_size, n_samples=A.shape[0], hidden_dim=32, code_dim=16, A=A_model)
 model.to(device)
 
 opt = torch.optim.Adam(lr=0.01, params=model.parameters())
@@ -97,7 +83,7 @@ for e in range(n_epochs):
     x = torch.ones(ground_truth_links.shape[0]).to(device)
     weights = torch.where(ground_truth_links < 0.99, x * nonzero_ratio, x * (1 - nonzero_ratio)).to(device)
 
-    loss = criterion(out, ground_truth_links, weight=weights)
+    loss = criterion(out, ground_truth_links, weight=weights) + model.kl_divergence()
 
     loss.backward()
     opt.step()

@@ -1,106 +1,27 @@
-import math
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import layers as l
 import utils as u
 
 
-class GraphMLP(nn.Module):
-    def __init__(self, input_feature_size, n_classes, hidden_size=64):
+class GCNAutoencoder(nn.Module):
+    def __init__(self, A, n_features, hidden_dim=32, code_dim=16):
         super().__init__()
-        self.hidden_size = hidden_size
+        self.hidden = l.KipfAndWillingConv(hidden_dim, n_features)
+        self.encoder = l.KipfAndWillingConv(code_dim, hidden_dim)
 
-        self.hidden = nn.Linear(input_feature_size, hidden_size)
-        self.output = nn.Linear(hidden_size, n_classes)
-
-    def forward(self, x):
-        x = self.hidden(x)
-        x = F.relu(x)
-
-        x = F.dropout(x, p=0.5, training=self.training)
-
-        x = self.output(x)
-        y = F.softmax(x, dim=1)
-
-        return y
-
-    def reg(self, lambda_reg=0.0):
-        return 0.0
-
-
-class KipfAndWillingConv(nn.Module):
-    def __init__(self, A, n_filters, n_features):
-        super().__init__()
-        transform = self.compute_transform(A)
+        transform = l.KipfAndWillingConv.compute_transform(A)
         self.transform = u.dense_to_sparse(transform)
 
-        self.filters = torch.nn.Parameter(torch.Tensor(n_features, n_filters), requires_grad=True)
-        stdv = 1. / math.sqrt(self.filters.size(1))
-        self.filters.data.uniform_(-stdv, stdv)
-
     def forward(self, x):
-        XF = torch.mm(x, self.filters)
-        out = torch.sparse.mm(self.transform, XF)
-        return out
-
-    @staticmethod
-    def compute_transform(A):
-        D_diag = torch.sum(A, dim=1).pow(-0.5)
-        D_diag[D_diag == float("Inf")] = 0
-
-        D = torch.diag(D_diag)
-
-        out = D.mm(A).mm(D)
-        return out
-
-
-def decode(x: torch.Tensor):
-    d = x.mm(x.t())
-    d = torch.sigmoid(d)
-    return d
-
-
-class GCNKipf(nn.Module):
-    def __init__(self, A, n_filters, n_features, n_classes):
-        super().__init__()
-        self.conv1 = KipfAndWillingConv(A, n_filters, n_features)
-        self.out = KipfAndWillingConv(A, n_classes, n_filters)
-
-    def forward(self, x, A=None):
-        if A is not None:
-            transform = KipfAndWillingConv.compute_transform(A)
-            self.conv1.transform = transform
-            self.out.transform = transform
-
-        x = self.conv1(x)
-        x = F.relu(x)
-
-        x = F.dropout(x, p=0.5, training=self.training)
-
-        x = self.out(x)
-        out = F.softmax(x, dim=1)
-
-        return out
-
-    def reg(self, lambda_reg=1e-5):
-        return self.conv1.filters.norm(p=2) * lambda_reg
-
-
-class GCNAutoencoder(nn.Module):
-    def __init__(self, A, hidden_dim, n_features, code_dim):
-        super().__init__()
-        self.hidden = KipfAndWillingConv(A, hidden_dim, n_features)
-        self.encoder = KipfAndWillingConv(A, code_dim, hidden_dim)
-
-    def forward(self, x):
-        hidden = self.hidden(x)
+        hidden = self.hidden(x, self.transform)
         hidden = F.relu(hidden)
 
         hidden = F.dropout(hidden, p=0.5, training=self.training)
 
-        encoded = self.encoder(hidden)
-        prediction = decode(encoded)
+        encoded = self.encoder(hidden, self.transform)
+        prediction = l.decode(encoded)
 
         return prediction
 
@@ -109,5 +30,54 @@ class GCNAutoencoder(nn.Module):
 
     def to(self, device):
         super().to(device)
-        self.hidden.transform = self.hidden.transform.to(device)
-        self.encoder.transform = self.encoder.transform.to(device)
+        self.transform = self.transform.to(device)
+
+
+class GcnVAE(nn.Module):
+    def __init__(self, A, n_features, n_samples, hidden_dim=32, code_dim=16):
+        super().__init__()
+        self.hidden = l.KipfAndWillingConv(n_features, hidden_dim)
+
+        self.means_encoder = l.KipfAndWillingConv(hidden_dim, code_dim)
+        self.log_std2_encoder = l.KipfAndWillingConv(hidden_dim, code_dim)
+
+        transform = l.KipfAndWillingConv.compute_transform(A)
+
+        self.transform = u.dense_to_sparse(transform)
+        self.ones = torch.ones(n_samples, code_dim)
+        self.n_samples = n_samples
+
+    def to(self, device):
+        self.transform = self.transform.to(device)
+        self.ones = self.ones.to(device)
+        super().to(device)
+
+    def kl_divergence(self):
+        mu2 = self.means.pow(2.0)
+        logs_plus_m_less_s = self.log_std2 - mu2 - self.std2
+
+        kl = logs_plus_m_less_s + self.ones
+        kl = kl.sum(dim=1).mean() * 0.5/self.n_samples
+
+        return -kl
+
+    def forward(self, x):
+        hidden = self.hidden(x, self.transform)
+        hidden = F.relu(hidden)
+
+        hidden = F.dropout(hidden, p=0.5, training=self.training)
+
+        means = self.means_encoder(hidden, self.transform)
+        log_std2 = self.log_std2_encoder(hidden, self.transform)
+        std2 = torch.exp(log_std2)
+
+        # reparametrisation trick
+        encoded = means + std2 * torch.normal(mean=means)
+
+        prediction = l.decode(encoded)
+
+        self.means = means
+        self.log_std2 = log_std2
+        self.std2 = std2
+
+        return prediction
