@@ -53,12 +53,8 @@ class GcnVAE(nn.Module):
         super().to(device)
 
     def kl_divergence(self):
-        mu2 = self.means.pow(2.0)
-        std2 = self.std.pow(2.0)
-        logs_plus_m_less_s = 2.0*self.log_std - mu2 - std2
-
-        kl = logs_plus_m_less_s + self.ones
-        kl = kl.sum(dim=1).mean() * 0.5/self.n_samples
+        kl = 2.0 * self.log_std - self.means.pow(2.0) - (2.0 * self.log_std).exp() + 1
+        kl = kl.sum(dim=1).mean() * 0.5 / self.n_samples
 
         return -kl
 
@@ -69,16 +65,19 @@ class GcnVAE(nn.Module):
         hidden = F.dropout(hidden, p=0.5, training=self.training)
 
         means = self.means_encoder(hidden, self.transform)
-        log_std = self.log_std_encoder(hidden, self.transform)
+        log_std = 0.5 * self.log_std_encoder(hidden, self.transform)
         std = torch.exp(log_std)
 
         # reparametrisation trick
-        encoded = means + std * torch.normal(mean=means)
+        encoded = means + std * torch.rand_like(std)
+
+        mask = (log_std == 0.0)
+        encoded[mask] = 0.0
 
         prediction = l.decode(encoded)
+        # prediction = F.dropout(prediction, p=0.5, training=self.training)
 
         self.means = means
         self.log_std = log_std
-        self.std = std
 
         return prediction

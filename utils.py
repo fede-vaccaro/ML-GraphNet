@@ -33,13 +33,13 @@ def test_auc(model, X, A, idx, test=False):
     a_cap = fn(model.forward(X))
     predicted = a_cap.view(-1)[idx].cpu().numpy()
 
-    if test:
-        a_cap = a_cap.cpu().numpy()
-        a_cap[a_cap <= 0.75] = 0
-        a_cap[a_cap > 0.75] = 1
-
-        plt.matshow(a_cap)
-        plt.show()
+    # if test:
+    #     a_cap = a_cap.cpu().numpy()
+    #     a_cap[a_cap <= 0.75] = 0
+    #     a_cap[a_cap > 0.75] = 1
+    #
+    #     plt.matshow(a_cap)
+    #     plt.show()
 
     groundtruth = A.view(-1)[idx].cpu().numpy()
 

@@ -20,15 +20,16 @@ A, X, Y = load_graph('cora')
 plt.matshow(A)
 # plt.show()
 
-seed = (2 ** 31 - 35486154)
+seed = (2 ** 31)
 torch.random.manual_seed(seed // 3)
 
 # X = normalize(X.astype('float32'), 'l1')
 
 A = torch.tensor(A.astype('float32'))
+# X = torch.eye(A.shape[0]).type(torch.float32)
 X = torch.tensor(X.astype('float32'))
 
-n_epochs = 200
+n_epochs = 400
 
 feat_size = X.shape[1]
 n_classes = Y.shape[1]
@@ -58,8 +59,8 @@ A_model = A_model.type(torch.float32)
 # plt.matshow(A_model.numpy())
 # plt.show()
 
-model = GCNAutoencoder(n_features=feat_size, hidden_dim=32, code_dim=16, A=A_model)
-# model = GcnVAE(n_features=feat_size, n_samples=A.shape[0], hidden_dim=32, code_dim=16, A=A_model)
+# model = GCNAutoencoder(n_features=feat_size, hidden_dim=32, code_dim=16, A=A_model)
+model = GcnVAE(n_features=feat_size, n_samples=A.shape[0], hidden_dim=32, code_dim=16, A=A_model)
 model.to(device)
 
 opt = torch.optim.Adam(lr=0.01, params=model.parameters())
@@ -67,9 +68,12 @@ opt = torch.optim.Adam(lr=0.01, params=model.parameters())
 lambda_reg = 5e-4
 
 nonzero_ratio = A.sum() / (A.shape[0] ** 2)
+zero_ratio = 1 - nonzero_ratio
 
 X = X.to(device)
 A = A.to(device)
+
+model.n_samples = len(train)
 
 for e in range(n_epochs):
     t0 = time.time()
@@ -81,9 +85,8 @@ for e in range(n_epochs):
     ground_truth_links = A.view(-1)[train]
 
     x = torch.ones(ground_truth_links.shape[0]).to(device)
-    weights = torch.where(ground_truth_links < 0.99, x * nonzero_ratio, x * (1 - nonzero_ratio)).to(device)
-
-    loss = criterion(out, ground_truth_links, weight=weights)  # + model.kl_divergence()
+    weights = torch.where(ground_truth_links < 0.5, x * nonzero_ratio, x * zero_ratio).to(device)
+    loss = criterion(out, ground_truth_links, weight=weights) + model.kl_divergence()
 
     loss.backward()
     opt.step()
