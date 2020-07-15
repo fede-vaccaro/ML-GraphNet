@@ -10,6 +10,8 @@ import matplotlib.pyplot as plt
 
 # implementation of SEMI-SUPERVISED CLASSIFICATION WITH GRAPH CONVOLUTIONAL NETWORKS - Kipf & Willing 2017
 # https://arxiv.org/pdf/1609.02907.pdf
+# and "Variational Graph Auto-Encoders" - Kipf & Willing 2016
+# https://arxiv.org/pdf/1611.07308.pdf
 
 print(torch.cuda.is_available())
 

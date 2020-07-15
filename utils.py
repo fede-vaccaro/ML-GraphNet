@@ -24,7 +24,11 @@ def test_acc(model, X, y, idx):
 @torch.no_grad()
 def test_auc(model, X, A, idx, test=False):
     model.eval()
-    predicted = model.forward(X).view(-1)[idx].cpu().numpy()
+
+    # fn = torch.sigmoid
+    fn = lambda x : x
+
+    predicted = fn(model.forward(X)).view(-1)[idx].cpu().numpy()
 
     groundtruth = A.view(-1)[idx].cpu().numpy()
 
