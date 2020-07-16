@@ -29,7 +29,7 @@ A = torch.tensor(A.astype('float32'))
 # X = torch.eye(A.shape[0]).type(torch.float32)
 X = torch.tensor(X.astype('float32'))
 
-n_epochs = 400
+n_epochs = 200
 
 feat_size = X.shape[1]
 n_classes = Y.shape[1]
@@ -52,15 +52,15 @@ train_, train, val, test = u.split_dataset(A, seed=seed)
 A_model = np.zeros(A.shape).astype('float32')
 A_model[train_] = 1
 A_model += A_model.T
-
+np.fill_diagonal(A_model, 1)
 A_model = torch.from_numpy(A_model)
 A_model = A_model.type(torch.float32)
 
 # plt.matshow(A_model.numpy())
 # plt.show()
 
-# model = GCNAutoencoder(n_features=feat_size, hidden_dim=32, code_dim=16, A=A_model)
-model = GcnVAE(n_features=feat_size, n_samples=A.shape[0], hidden_dim=32, code_dim=16, A=A_model)
+model = GCNAutoencoder(n_features=feat_size, hidden_dim=32, code_dim=16, A=A_model)
+# model = GcnVAE(n_features=feat_size, n_samples=A.shape[0], hidden_dim=32, code_dim=16, A=A_model)
 model.to(device)
 
 opt = torch.optim.Adam(lr=0.01, params=model.parameters())
@@ -86,7 +86,9 @@ for e in range(n_epochs):
 
     x = torch.ones(ground_truth_links.shape[0]).to(device)
     weights = torch.where(ground_truth_links < 0.5, x * nonzero_ratio, x * zero_ratio).to(device)
-    loss = criterion(out, ground_truth_links, weight=weights) + model.kl_divergence()
+    loss = criterion(out, ground_truth_links, weight=weights)
+    if isinstance(model, GcnVAE):
+        loss += model.kl_divergence()
 
     loss.backward()
     opt.step()

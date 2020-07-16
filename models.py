@@ -22,6 +22,7 @@ class GCNAutoencoder(nn.Module):
 
         encoded = self.encoder(hidden, self.transform)
         prediction = l.decode(encoded)
+        prediction = F.dropout(prediction, p=0.5, training=self.training)
 
         return prediction
 
@@ -71,11 +72,8 @@ class GcnVAE(nn.Module):
         # reparametrisation trick
         encoded = means + std * torch.rand_like(std)
 
-        mask = (log_std == 0.0)
-        encoded[mask] = 0.0
-
         prediction = l.decode(encoded)
-        # prediction = F.dropout(prediction, p=0.5, training=self.training)
+        prediction = F.dropout(prediction, p=0.5, training=self.training)
 
         self.means = means
         self.log_std = log_std
