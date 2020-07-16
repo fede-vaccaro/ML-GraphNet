@@ -17,19 +17,19 @@ print(torch.cuda.is_available())
 
 A, X, Y = load_graph('cora')
 
-plt.matshow(A)
+# plt.matshow(A)
 # plt.show()
 
 seed = (2 ** 31)
 torch.random.manual_seed(seed // 3)
-
 # X = normalize(X.astype('float32'), 'l1')
 
 A = torch.tensor(A.astype('float32'))
 # X = torch.eye(A.shape[0]).type(torch.float32)
 X = torch.tensor(X.astype('float32'))
 
-n_epochs = 200
+n_epochs = 400
+n_splits = 10
 
 feat_size = X.shape[1]
 n_classes = Y.shape[1]
@@ -47,6 +47,7 @@ not_improving_max_step = n_epochs
 
 print("Not improving epsilon: ", val_eps_early_stop)
 
+# A += torch.eye(A.shape[0])
 train_, train, val, test = u.split_dataset(A, seed=seed)
 
 A_model = np.zeros(A.shape).astype('float32')
@@ -59,8 +60,8 @@ A_model = A_model.type(torch.float32)
 # plt.matshow(A_model.numpy())
 # plt.show()
 
-model = GCNAutoencoder(n_features=feat_size, hidden_dim=32, code_dim=16, A=A_model)
-# model = GcnVAE(n_features=feat_size, n_samples=A.shape[0], hidden_dim=32, code_dim=16, A=A_model)
+# model = GCNAutoencoder(n_features=feat_size, hidden_dim=32, code_dim=16, A=A_model)
+model = GcnVAE(n_features=feat_size, n_samples=A.shape[0], hidden_dim=32, code_dim=16, A=A_model)
 model.to(device)
 
 opt = torch.optim.Adam(lr=0.01, params=model.parameters())
@@ -86,6 +87,8 @@ for e in range(n_epochs):
 
     x = torch.ones(ground_truth_links.shape[0]).to(device)
     weights = torch.where(ground_truth_links < 0.5, x * nonzero_ratio, x * zero_ratio).to(device)
+    loss_norm = weights.sum() / len(train)
+
     loss = criterion(out, ground_truth_links, weight=weights)
     if isinstance(model, GcnVAE):
         loss += model.kl_divergence()
@@ -116,4 +119,5 @@ for e in range(n_epochs):
                                                                                                          val_auc,
                                                                                                          t1 - t0))
 
-print("Test auc: ", u.test_auc(model, X, A, test, test=True))
+test_auc = u.test_auc(model, X, A, test, test=True)
+print("Test auc {}: ", test_auc)

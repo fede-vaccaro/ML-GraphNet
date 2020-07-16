@@ -27,8 +27,8 @@ def test_acc(model, X, y, idx):
 def test_auc(model, X, A, idx, test=False):
     model.eval()
 
-    fn = torch.sigmoid
-    # fn = lambda x : x
+    # fn = torch.sigmoid
+    fn = lambda x : x
 
     a_cap = fn(model.forward(X))
     predicted = a_cap.view(-1)[idx].cpu().numpy()
@@ -46,8 +46,8 @@ def test_auc(model, X, A, idx, test=False):
     auc_score = roc_auc_score(y_score=predicted, y_true=groundtruth)
     if test:
         fpr, tpr, thresholds = roc_curve(y_score=predicted, y_true=groundtruth)
-        plot_roc(fpr, tpr)
-        print("AUC: ", auc(fpr, tpr))
+        # plot_roc(fpr, tpr)
+        # print("AUC: ", auc(fpr, tpr))
 
     return auc_score
 

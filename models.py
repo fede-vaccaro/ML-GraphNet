@@ -40,7 +40,7 @@ class GcnVAE(nn.Module):
         self.hidden = l.KipfAndWillingConv(n_features, hidden_dim)
 
         self.means_encoder = l.KipfAndWillingConv(hidden_dim, code_dim)
-        self.log_std_encoder = l.KipfAndWillingConv(hidden_dim, code_dim)
+        self.log_std2_encoder = l.KipfAndWillingConv(hidden_dim, code_dim)
 
         transform = l.KipfAndWillingConv.compute_transform(A)
 
@@ -66,12 +66,12 @@ class GcnVAE(nn.Module):
         hidden = F.dropout(hidden, p=0.5, training=self.training)
 
         means = self.means_encoder(hidden, self.transform)
-        log_std = 0.5 * self.log_std_encoder(hidden, self.transform)
+        log_std = 0.5 * self.log_std2_encoder(hidden, self.transform)
         std = torch.exp(log_std)
 
         # reparametrisation trick
         encoded = means + std * torch.rand_like(std)
-
+        # encoded = F.normalize(encoded, dim=1, p=2)
         prediction = l.decode(encoded)
         prediction = F.dropout(prediction, p=0.5, training=self.training)
 
