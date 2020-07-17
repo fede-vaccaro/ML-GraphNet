@@ -49,9 +49,9 @@ class DVNE(nn.Module):
         m_b, std_b = n_b
 
         dist_m = (m_a - m_b).pow(2.0).sum(dim=1).mean()
-        dist_std = (std_a - std_b).pow(2.0).sum(dim=1).mean()
+        dist_std = (std_a - std_b).norm(p='fro', dim=1).pow(2.0).mean()
 
-        return (dist_m + dist_std)*0.01
+        return (dist_m + dist_std)
 
     def forward(self, x):
         hidden = F.relu(self.hidden(x))

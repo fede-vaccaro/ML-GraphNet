@@ -28,7 +28,7 @@ A = torch.tensor(A.astype('float32'))
 # X = torch.eye(A.shape[0]).type(torch.float32)
 X = torch.tensor(X.astype('float32'))
 
-n_epochs = 1000
+n_epochs = 400
 n_splits = 10
 
 feat_size = X.shape[1]
@@ -96,7 +96,7 @@ model.n_samples = len(train)
 
 
 def energy_loss(w_ij, w_ik):
-    return w_ij.pow(2.0) + torch.exp(-w_ij)
+    return w_ij.pow(2.0) + torch.exp(-w_ik)
 
 
 for e in range(n_epochs*10):
@@ -123,11 +123,12 @@ for e in range(n_epochs*10):
     weights = torch.where(gt_reconsturction < 0.5, x * nonzero_ratio, x * zero_ratio).to(device)
     loss_norm = weights.sum() / len(train)
 
-    loss = criterion(out_reconstruction, gt_reconsturction, weight=weights)*0.6
+    loss = criterion(out_reconstruction, gt_reconsturction, weight=weights)*0.6/loss_norm
     if isinstance(model, DVNE):
         w_ij = model.wasserstein((mi, stdi), (mj, stdj))
         w_ik = model.wasserstein((mi, stdi), (mk, stdk))
-        loss += energy_loss(w_ij, w_ik)
+        t = energy_loss(w_ij, w_ik)
+        loss += t
 
     if isinstance(model, GcnVAE):
         loss += model.kl_divergence()

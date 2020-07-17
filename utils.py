@@ -120,11 +120,11 @@ def split_dataset(A, seed):
     indices_zeros = np.random.RandomState(seed=seed).permutation(len(arg_zero_values))
 
     # we want the test set is made by 10% of the total 1s
-    n_ones_test = (0.10 * len(arg_ones_values)).__int__()
-    n_zeros_test = (0.10 * len(arg_zero_values)).__int__()
+    n_ones_test = (0.20 * len(arg_ones_values)).__int__()
+    n_zeros_test = (0.20 * len(arg_zero_values)).__int__()
 
-    n_ones_val = (0.15 * len(arg_ones_values)).__int__()
-    n_zeros_val = (0.15 * len(arg_zero_values)).__int__()
+    n_ones_val = (0.30 * len(arg_ones_values)).__int__()
+    n_zeros_val = (0.30 * len(arg_zero_values)).__int__()
 
     n_ones_train = (len(arg_ones_values)).__int__()
     n_zeros_train = (len(arg_zero_values)).__int__()
