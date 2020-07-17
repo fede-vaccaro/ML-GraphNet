@@ -40,17 +40,15 @@ class GcnVAE(nn.Module):
         self.hidden = l.KipfAndWillingConv(n_features, hidden_dim)
 
         self.means_encoder = l.KipfAndWillingConv(hidden_dim, code_dim)
-        self.log_std2_encoder = l.KipfAndWillingConv(hidden_dim, code_dim)
+        self.log_std_encoder = l.KipfAndWillingConv(hidden_dim, code_dim)
 
         transform = l.KipfAndWillingConv.compute_transform(A)
 
         self.transform = u.dense_to_sparse(transform)
-        self.ones = torch.ones(n_samples, code_dim)
         self.n_samples = n_samples
 
     def to(self, device):
         self.transform = self.transform.to(device)
-        self.ones = self.ones.to(device)
         super().to(device)
 
     def kl_divergence(self):
@@ -66,14 +64,15 @@ class GcnVAE(nn.Module):
         hidden = F.dropout(hidden, p=0.5, training=self.training)
 
         means = self.means_encoder(hidden, self.transform)
-        log_std = 0.5 * self.log_std2_encoder(hidden, self.transform)
+        log_std = 0.5 * self.log_std_encoder(hidden, self.transform)
         std = torch.exp(log_std)
 
         # reparametrisation trick
         encoded = means + std * torch.rand_like(std)
+
         # encoded = F.normalize(encoded, dim=1, p=2)
         prediction = l.decode(encoded)
-        prediction = F.dropout(prediction, p=0.5, training=self.training)
+        prediction = F.dropout(prediction, p=0.8, training=self.training)
 
         self.means = means
         self.log_std = log_std
