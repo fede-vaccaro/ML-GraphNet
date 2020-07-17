@@ -28,7 +28,7 @@ A = torch.tensor(A.astype('float32'))
 # X = torch.eye(A.shape[0]).type(torch.float32)
 X = torch.tensor(X.astype('float32'))
 
-n_epochs = 400
+n_epochs = 1000
 n_splits = 10
 
 feat_size = X.shape[1]
@@ -53,18 +53,35 @@ train_, train, val, test = u.split_dataset(A, seed=seed)
 A_model = np.zeros(A.shape).astype('float32')
 A_model[train_] = 1
 A_model += A_model.T
-np.fill_diagonal(A_model, 1)
+# np.fill_diagonal(A_model, 1)
 A_model = torch.from_numpy(A_model)
 A_model = A_model.type(torch.float32)
+
+# sample triplets
+# nbrs is a dict nbrs[i] -> {j1,j2,...,}
+nbrs = {}
+not_nbrs = {}
+
+for ij in zip(train_[0], train_[1]):
+    i, j = int(ij[0]), int(ij[1])
+    if i in nbrs.keys():
+        nbrs[i] = nbrs[i].union({j})
+    else:
+        nbrs[i] = {j}
+
+for i in nbrs.keys():
+    nbrs_set = nbrs[i]
+    all_nodes = {i for i in range(A.shape[0])}
+    not_nbrs[i] = all_nodes - nbrs_set
 
 # plt.matshow(A_model.numpy())
 # plt.show()
 
 # model = GCNAutoencoder(n_features=feat_size, hidden_dim=32, code_dim=16, A=A_model)
-model = GcnVAE(n_features=feat_size, n_samples=A.shape[0], hidden_dim=32, code_dim=16, A=A_model)
+model = DVNE(n_samples=A.shape[0], n_features=A.shape[0])
 model.to(device)
 
-opt = torch.optim.Adam(lr=0.01, params=model.parameters())
+opt = torch.optim.Adam(lr=0.001, params=model.parameters())
 
 lambda_reg = 5e-4
 
@@ -73,33 +90,55 @@ zero_ratio = 1 - nonzero_ratio
 
 X = X.to(device)
 A = A.to(device)
+A_model = A_model.to(device)
 
 model.n_samples = len(train)
 
-for e in range(n_epochs):
+
+def energy_loss(w_ij, w_ik):
+    return w_ij.pow(2.0) + torch.exp(-w_ij)
+
+
+for e in range(n_epochs*10):
     t0 = time.time()
+
+    triplets = u.sample_triplets(nbrs, not_nbrs, 200)
+    ids, i, j, k = triplets
+
     model.train()
     opt.zero_grad()
 
-    forward = model.forward(X)
-    out = forward.view(-1)[train]
-    ground_truth_links = A.view(-1)[train]
+    out_i, mi, stdi = model.forward(A_model[i, :])
+    out_j, mj, stdj = model.forward(A_model[j, :])
+    out_k, mk, stdk = model.forward(A_model[k, :])
 
-    x = torch.ones(ground_truth_links.shape[0]).to(device)
-    weights = torch.where(ground_truth_links < 0.5, x * nonzero_ratio, x * zero_ratio).to(device)
+    gt_i = A[i, :]
+    gt_j = A[j, :]
+    gt_k = A[k, :]
+
+    out_reconstruction = torch.cat([out_i, out_j, out_k], dim=0).view(-1)
+    gt_reconsturction = torch.cat([gt_i, gt_j, gt_k], dim=0).view(-1)
+
+    x = torch.ones(gt_reconsturction.shape[0]).to(device)
+    weights = torch.where(gt_reconsturction < 0.5, x * nonzero_ratio, x * zero_ratio).to(device)
     loss_norm = weights.sum() / len(train)
 
-    loss = criterion(out, ground_truth_links, weight=weights)
+    loss = criterion(out_reconstruction, gt_reconsturction, weight=weights)*0.6
+    if isinstance(model, DVNE):
+        w_ij = model.wasserstein((mi, stdi), (mj, stdj))
+        w_ik = model.wasserstein((mi, stdi), (mk, stdk))
+        loss += energy_loss(w_ij, w_ik)
+
     if isinstance(model, GcnVAE):
         loss += model.kl_divergence()
 
     loss.backward()
     opt.step()
 
-    val_auc = u.test_auc(model, X, A, val)
+    val_auc = u.test_auc(model, A_model, A, val)
 
     with torch.no_grad():
-        val_loss = float(criterion(forward.view(-1)[val], A.view(-1)[val].data))
+        val_loss = float(criterion((model.forward(A_model)[0]).view(-1)[val], A.view(-1)[val].data))
 
     if e > 0:
         if val_loss < val_history[-1] - val_eps_early_stop:
@@ -119,5 +158,5 @@ for e in range(n_epochs):
                                                                                                          val_auc,
                                                                                                          t1 - t0))
 
-test_auc = u.test_auc(model, X, A, test, test=True)
+test_auc = u.test_auc(model, A_model, A, test, test=True)
 print("Test auc {}: ", test_auc)

@@ -28,9 +28,10 @@ def test_auc(model, X, A, idx, test=False):
     model.eval()
 
     # fn = torch.sigmoid
-    fn = lambda x : x
+    fn = lambda x: x
 
-    a_cap = fn(model.forward(X))
+    a_cap, _, _ = model.forward(X)
+    a_cap = fn(a_cap)
     predicted = a_cap.view(-1)[idx].cpu().numpy()
 
     # if test:
@@ -50,6 +51,24 @@ def test_auc(model, X, A, idx, test=False):
         # print("AUC: ", auc(fpr, tpr))
 
     return auc_score
+
+
+def sample_triplets(nbrs, not_nbrs, n_triplets):
+    assert n_triplets <= len(nbrs.keys())
+    assert nbrs.keys() == not_nbrs.keys()
+
+    nodes_ids = np.random.permutation(len(nbrs.keys()))[:n_triplets]
+
+    nodes = np.array(list(nbrs.keys()))
+    nodes = nodes[nodes_ids]
+    positives = []
+    negatives = []
+
+    for node in nodes:
+        positives += [random.sample(nbrs[node], 1)[0]]
+        negatives += [random.sample(not_nbrs[node], 1)[0]]
+
+    return nodes_ids, nodes, positives, negatives
 
 
 def plot_roc(fpr, tpr):
