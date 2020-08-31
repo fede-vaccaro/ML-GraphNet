@@ -72,7 +72,7 @@ class GcnVAE(nn.Module):
 
         # encoded = F.normalize(encoded, dim=1, p=2)
         prediction = l.decode(encoded)
-        prediction = F.dropout(prediction, p=0.8, training=self.training)
+        prediction = F.dropout(prediction, p=0.5, training=self.training)
 
         self.means = means
         self.log_std = log_std

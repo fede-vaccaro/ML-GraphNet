@@ -8,7 +8,7 @@ def load_graph(dataset_name):
         dataset_filename = 'datasets/' + dataset_name + "/{}.h5".format(dataset_name)
 
         if os.path.exists(dataset_filename):
-        # if False:
+            # if False:
             print("Reading dataset '{}' from file".format(dataset_name))
             dataset_file = h5py.File(dataset_filename, 'r')
             A = dataset_file['A'][:]
@@ -22,8 +22,8 @@ def load_graph(dataset_name):
             dataset_file.close()
         else:
             print("Bulding dataset '{}'".format(dataset_name))
-            cites_txt = open('datasets/cora/cora.cites', 'r')
-            content_txt = open('datasets/cora/cora.content', 'r')
+            cites_txt = open('datasets/{}/{}.cites'.format(dataset_name, dataset_name), 'r')
+            content_txt = open('datasets/{}/{}.content'.format(dataset_name, dataset_name), 'r')
 
             # convert cites into a dictionary
             edges = []
@@ -60,7 +60,7 @@ def load_graph(dataset_name):
                 jj = edge[1]
 
                 # assert A[ii, jj] != 1, "indices: {}, {}; corresponding to ids {}, {}: ".format(ii, jj, all_ids[ii], all_ids[jj])
-                assert ii != jj
+                # assert ii != jj, print(edge_ids.index(edge))
 
                 A[ii, jj] = 1
                 A[jj, ii] = 1
@@ -107,10 +107,19 @@ def load_graph(dataset_name):
             for ii, key in enumerate(list(features.keys())):
                 feat = np.array(features[key])
                 idx = all_ids.index(key)
-                X[idx] = feat
 
-                label_idx = all_labels.index(labels[key])
-                L[idx, label_idx] = 1
+                # handles missing features case for citeseer
+                fake_idx = []
+
+                try:
+                    X[idx] = feat
+                    label_idx = all_labels.index(labels[key])
+                    L[idx, label_idx] = 1
+                except:
+                    fake_idx += [idx]
+
+                X = np.delete(X, fake_idx, axis=0)
+                X = np.delete(X, fake_idx, axis=1)
 
             dataset_file = h5py.File(dataset_filename, 'w')
             dataset_file.create_dataset('A', data=A)
