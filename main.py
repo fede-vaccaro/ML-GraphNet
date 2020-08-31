@@ -28,7 +28,7 @@ A = torch.tensor(A.astype('float32'))
 # X = torch.eye(A.shape[0]).type(torch.float32)
 X = torch.tensor(X.astype('float32'))
 
-n_epochs = 400
+n_epochs = 4000
 n_splits = 10
 
 feat_size = X.shape[1]
@@ -38,6 +38,20 @@ device = torch.device("cuda")
 
 # criterion = F.binary_cross_entropy
 criterion = F.binary_cross_entropy_with_logits
+import torch.nn as nn
+
+class DVNELoss(nn.Module):
+    def __init__(self):
+        super(DVNELoss, self).__init__()
+
+    def forward(self, gt, pred, weights=None):
+        expected = ((gt - pred) ** 2)
+        if weights is not None:
+            expected *= weights
+        expected = expected.mean()
+        return expected
+
+criterion = DVNELoss()
 
 val_history = []
 val_eps_early_stop = 1e-6
@@ -99,7 +113,7 @@ def energy_loss(w_ij, w_ik):
     return w_ij.pow(2.0) + torch.exp(-w_ik)
 
 
-for e in range(n_epochs*10):
+for e in range(n_epochs):
     t0 = time.time()
 
     triplets = u.sample_triplets(nbrs, not_nbrs, 200)
@@ -117,13 +131,16 @@ for e in range(n_epochs*10):
     gt_k = A[k, :]
 
     out_reconstruction = torch.cat([out_i, out_j, out_k], dim=0).view(-1)
-    gt_reconsturction = torch.cat([gt_i, gt_j, gt_k], dim=0).view(-1)
+    gt = torch.cat([gt_i, gt_j, gt_k], dim=0).view(-1)
 
-    x = torch.ones(gt_reconsturction.shape[0]).to(device)
-    weights = torch.where(gt_reconsturction < 0.5, x * nonzero_ratio, x * zero_ratio).to(device)
+    x = torch.ones(gt.shape[0]).to(device)
+    weights = torch.where(gt < 0.5, x * nonzero_ratio, x * zero_ratio).to(device)
     loss_norm = weights.sum() / len(train)
 
-    loss = criterion(out_reconstruction, gt_reconsturction, weight=weights)*0.6/loss_norm
+    loss_weight = 0.6
+    # loss = criterion(out_reconstruction, gt_reconsturction, weight=weights) * loss_weight/ loss_norm
+    loss = criterion(gt, out_reconstruction, weights) * loss_weight
+    # loss = 0.0
     if isinstance(model, DVNE):
         w_ij = model.wasserstein((mi, stdi), (mj, stdj))
         w_ik = model.wasserstein((mi, stdi), (mk, stdk))
