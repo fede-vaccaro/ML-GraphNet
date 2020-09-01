@@ -3,7 +3,7 @@ from sklearn.metrics import roc_auc_score, roc_curve, auc
 import numpy as np
 import matplotlib.pyplot as plt
 import random
-
+from torch import nn as nn
 
 # plt.switch_backend('TkAgg') #TkAgg (instead Qt4Agg)
 
@@ -23,15 +23,22 @@ def test_acc(model, X, y, idx):
     return correct / total
 
 
+
+
 @torch.no_grad()
 def test_auc(model, X, A, idx, test=False):
     model.eval()
 
     # fn = torch.sigmoid
-    fn = lambda x: x
 
-    a_cap, _, _ = model.forward(X)
-    a_cap = fn(a_cap)
+    _, means, std = model.decode(X)
+
+    dist_m = torch.cdist(means, means).pow(2)
+    dist_s = torch.cdist(std, std).pow(2)
+
+    a_cap = dist_m + dist_s
+    a_cap = (a_cap.max() - a_cap)/a_cap.max()
+
     predicted = a_cap.view(-1)[idx].cpu().numpy()
 
     # if test:
@@ -68,7 +75,7 @@ def sample_triplets(nbrs, not_nbrs, n_triplets):
         positives += [random.sample(nbrs[node], 1)[0]]
         negatives += [random.sample(not_nbrs[node], 1)[0]]
 
-    return nodes_ids, nodes, positives, negatives
+    return nodes, positives, negatives
 
 
 def plot_roc(fpr, tpr):
@@ -119,8 +126,8 @@ def split_dataset(A, seed):
     indices_ones = np.random.RandomState(seed=seed).permutation(len(arg_ones_values))
     indices_zeros = np.random.RandomState(seed=seed).permutation(len(arg_zero_values))
 
-    test_split = 0.70
-    val_split = 0.80
+    test_split = 0.10
+    val_split = 0.15
 
     # train split = 1.0 - val_split
 

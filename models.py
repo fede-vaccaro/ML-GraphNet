@@ -33,6 +33,7 @@ class GCNAutoencoder(nn.Module):
         super().to(device)
         self.transform = self.transform.to(device)
 
+
 class DVNE(nn.Module):
     def __init__(self, n_features, n_samples, hidden_dim=512, code_dim=128):
         super().__init__()
@@ -44,28 +45,35 @@ class DVNE(nn.Module):
         self.decoder = nn.Linear(in_features=code_dim, out_features=hidden_dim)
         self.output = nn.Linear(in_features=hidden_dim, out_features=n_features)
 
+
     def wasserstein(self, n_a, n_b):
         m_a, std_a = n_a
         m_b, std_b = n_b
 
         dist_m = (m_a - m_b).pow(2.0).sum(dim=1)
-        dist_std = (std_a - std_b).norm(p='fro', dim=1).pow(2.0)
+        dist_std = (std_a - std_b).pow(2.0).sum(dim=1)
+        # same as
+        # dist_std = (std_a - std_b).norm(p='fro', dim=1).pow(2.0)
 
         return (dist_m + dist_std)
 
-    def forward(self, x):
+    def decode(self, x):
         hidden = F.relu(self.hidden(x))
-        hidden = F.dropout(hidden, p=0.5, training=self.training)
+        #hidden = F.dropout(hidden, p=0.5, training=self.training)
 
         means = self.means(hidden)
         std = F.elu(self.std(hidden)) + 1
 
         # reparametrisation trick
         encoded = means + std * torch.rand_like(std)
-        encoded = F.dropout(encoded, p=0.5, training=self.training)
+        return encoded, means, std
+
+    def forward(self, x):
+        encoded, means, std = self.decode(x)
+        #encoded = F.dropout(encoded, p=0.5, training=self.training)
 
         decoded = F.relu(self.decoder(encoded))
-        decoded = F.dropout(decoded, p=0.5, training=self.training)
+        #decoded = F.dropout(decoded, p=0.5, training=self.training)
 
         output = self.output(decoded)
 

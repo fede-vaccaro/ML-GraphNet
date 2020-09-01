@@ -28,6 +28,10 @@ A = torch.tensor(A.astype('float32'))
 # X = torch.eye(A.shape[0]).type(torch.float32)
 X = torch.tensor(X.astype('float32'))
 
+
+D_inv = A.sum(dim=1).pow(-1)
+P = torch.diag(D_inv).matmul(A)
+
 n_epochs = 4000
 n_splits = 10
 
@@ -45,9 +49,9 @@ class DVNELoss(nn.Module):
         super(DVNELoss, self).__init__()
 
     def forward(self, gt, pred, weights=None):
-        expected = ((gt - pred) ** 2)
-        if weights is not None:
-            expected *= weights
+        expected = (gt*(gt - pred)) ** 2
+        #if weights is not None:
+        #    expected *= weights
         expected = expected.mean()
         return expected
 
@@ -68,9 +72,19 @@ A_model = np.zeros(A.shape).astype('float32')
 A_model[train_ones_indices] = 1
 A_model += A_model.T
 # np.fill_diagonal(A_model, 1)
+
+#########################################
+## transform A_model into transition matrix
+
+A_model_d_inv = 1/A_model.sum(axis=1)
+A_model_d_inv[A_model_d_inv == np.inf] = 0
+A_model_d_inv = np.diag(A_model_d_inv)
+A_model = A_model.dot(A_model_d_inv)
+
+########################################
+
 A_model = torch.from_numpy(A_model)
 A_model = A_model.type(torch.float32)
-
 # sample triplets
 # nbrs is a dict nbrs[i] -> {j1,j2,...,}
 nbrs = {}
@@ -82,7 +96,12 @@ for ij in zip(train_ones_indices[0], train_ones_indices[1]):
     if i in nbrs.keys():
         nbrs[i] = nbrs[i].union({j})
     else:
-        nbrs[i] = {i, j}
+        nbrs[i] = {j}
+
+    if j in nbrs.keys():
+        nbrs[j] = nbrs[j].union({i})
+    else:
+        nbrs[j] = {i}
 
 for i in nbrs.keys():
     nbrs_set = nbrs[i]
@@ -111,14 +130,14 @@ model.n_samples = len(train)
 
 def energy_loss(w_ij, w_ik):
     energy = w_ij.pow(2.0) + torch.exp(-w_ik)
-    return energy.mean()*0.6
+    return energy.mean()
 
 
 for e in range(n_epochs):
     t0 = time.time()
 
-    triplets = u.sample_triplets(nbrs, not_nbrs, 500)
-    ids, i, j, k = triplets
+    triplets = u.sample_triplets(nbrs, not_nbrs, 200)
+    i, j, k = triplets
 
     model.train()
     opt.zero_grad()
@@ -127,20 +146,22 @@ for e in range(n_epochs):
     out_j, mj, stdj = model.forward(A_model[j, :])
     out_k, mk, stdk = model.forward(A_model[k, :])
 
-    gt_i = A[i, :]
-    gt_j = A[j, :]
-    gt_k = A[k, :]
+    gt_i = P[i, :]
+    gt_j = P[j, :]
+    gt_k = P[k, :]
 
     out_reconstruction = torch.cat([out_i, out_j, out_k], dim=0).view(-1)
-    gt = torch.cat([gt_i, gt_j, gt_k], dim=0).view(-1)
+    gt = torch.cat([gt_i, gt_j, gt_k], dim=0).view(-1).cuda()
+    a_gt = torch.cat([A[i, :], A[j, :], A[j, :]], dim=0).view(-1).cuda()
 
     x = torch.ones(gt.shape[0]).to(device)
-    weights = torch.where(gt < 0.5, x * nonzero_ratio, x * zero_ratio).to(device)
+    weights = torch.where(gt == 0.0, x * float(nonzero_ratio), x * float(zero_ratio)).to(device)
     loss_norm = weights.sum() / len(train)
 
-    loss_weight = 1.0
+    loss_weight = 0.6
     # loss = criterion(out_reconstruction, gt_reconsturction, weight=weights) * loss_weight/ loss_norm
-    loss = criterion(gt, out_reconstruction, weights) * loss_weight
+    loss = criterion(gt, out_reconstruction, a_gt) * loss_weight
+
     # loss = 0.0
     if isinstance(model, DVNE):
         w_ij = model.wasserstein((mi, stdi), (mj, stdj))
@@ -154,28 +175,20 @@ for e in range(n_epochs):
     loss.backward()
     opt.step()
 
-    val_auc = u.test_auc(model, A_model, A, val)
-
-    with torch.no_grad():
-        val_loss = float(criterion((model.forward(A_model)[0]).view(-1)[val], A.view(-1)[val].data))
-
-    if e > 0:
-        if val_loss < val_history[-1] - val_eps_early_stop:
-            not_improving_counter = 0
-        elif not_improving_counter > not_improving_max_step:
-            print("Breaking at epoch: ", e)
-            break
-        else:
-            not_improving_counter += 1
-
-    val_history += [val_loss]
     t1 = time.time()
     if (e + 1) % 10 == 0:
+        if len(val) > 0:
+            with torch.no_grad():
+                val_loss = float(criterion((model.forward(A_model)[0]).view(-1)[val], A.view(-1)[val].data))
+            val_auc = u.test_auc(model, A_model, A, val)
+        else:
+            val_auc = np.nan
+            val_loss = np.nan
         print(
             "Epoch: {0}; train loss: {1:.4f}; val loss: {2:.4f}; val auc: {3:.4f}; time: {4:.4f}".format(e + 1, loss,
                                                                                                          val_loss,
                                                                                                          val_auc,
                                                                                                          t1 - t0))
 
-test_auc = u.test_auc(model, A_model, A, test, test=True)
+test_auc = u.test_auc(model, A_model, A, idx=test, test=True)
 print("Test auc {}: ", test_auc)
