@@ -48,8 +48,8 @@ class DVNE(nn.Module):
         m_a, std_a = n_a
         m_b, std_b = n_b
 
-        dist_m = (m_a - m_b).pow(2.0).sum(dim=1).mean()
-        dist_std = (std_a - std_b).norm(p='fro', dim=1).pow(2.0).mean()
+        dist_m = (m_a - m_b).pow(2.0).sum(dim=1)
+        dist_std = (std_a - std_b).norm(p='fro', dim=1).pow(2.0)
 
         return (dist_m + dist_std)
 

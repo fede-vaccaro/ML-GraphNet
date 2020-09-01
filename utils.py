@@ -119,12 +119,17 @@ def split_dataset(A, seed):
     indices_ones = np.random.RandomState(seed=seed).permutation(len(arg_ones_values))
     indices_zeros = np.random.RandomState(seed=seed).permutation(len(arg_zero_values))
 
-    # we want the test set is made by 10% of the total 1s
-    n_ones_test = (0.20 * len(arg_ones_values)).__int__()
-    n_zeros_test = (0.20 * len(arg_zero_values)).__int__()
+    test_split = 0.70
+    val_split = 0.80
 
-    n_ones_val = (0.30 * len(arg_ones_values)).__int__()
-    n_zeros_val = (0.30 * len(arg_zero_values)).__int__()
+    # train split = 1.0 - val_split
+
+    # we want the test set is made by 10% of the total 1s
+    n_ones_test = (test_split * len(arg_ones_values)).__int__()
+    n_zeros_test = (test_split * len(arg_zero_values)).__int__()
+
+    n_ones_val = (val_split * len(arg_ones_values)).__int__()
+    n_zeros_val = (val_split * len(arg_zero_values)).__int__()
 
     n_ones_train = (len(arg_ones_values)).__int__()
     n_zeros_train = (len(arg_zero_values)).__int__()
@@ -145,7 +150,7 @@ def split_dataset(A, seed):
     train_set_edge_indices = np.vstack((arg_ones_values[indices_train_ones], arg_zero_values[indices_train_zeros]))
 
     train = edges_indices[0][train_set_edge_indices], edges_indices[1][train_set_edge_indices]
-    train_ones = edges_indices[0][arg_ones_values[indices_train_ones]], edges_indices[1][
+    train_ones_indices = edges_indices[0][arg_ones_values[indices_train_ones]], edges_indices[1][
         arg_ones_values[indices_train_ones]]
 
     val = edges_indices[0][val_set_edge_indices], edges_indices[1][val_set_edge_indices]
@@ -162,7 +167,7 @@ def split_dataset(A, seed):
     # plt.matshow(x)
     # plt.show()
     #
-    # x[train_ones] = 1
+    # x[train_ones_indices] = 1
     # plt.matshow(x)
     # plt.show()
     #
@@ -170,5 +175,5 @@ def split_dataset(A, seed):
     # plt.matshow(x)
     # plt.show()
 
-    return train_ones, indices_from_2d_to_1d(train, A.shape[0]), indices_from_2d_to_1d(val, A.shape[
+    return train_ones_indices, indices_from_2d_to_1d(train, A.shape[0]), indices_from_2d_to_1d(val, A.shape[
         0]), indices_from_2d_to_1d(test, A.shape[0])

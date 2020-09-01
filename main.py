@@ -62,10 +62,10 @@ not_improving_max_step = n_epochs
 print("Not improving epsilon: ", val_eps_early_stop)
 
 # A += torch.eye(A.shape[0])
-train_, train, val, test = u.split_dataset(A, seed=seed)
+train_ones_indices, train, val, test = u.split_dataset(A, seed=seed)
 
 A_model = np.zeros(A.shape).astype('float32')
-A_model[train_] = 1
+A_model[train_ones_indices] = 1
 A_model += A_model.T
 # np.fill_diagonal(A_model, 1)
 A_model = torch.from_numpy(A_model)
@@ -75,17 +75,17 @@ A_model = A_model.type(torch.float32)
 # nbrs is a dict nbrs[i] -> {j1,j2,...,}
 nbrs = {}
 not_nbrs = {}
+all_nodes = {i for i in range(A.shape[0])}
 
-for ij in zip(train_[0], train_[1]):
+for ij in zip(train_ones_indices[0], train_ones_indices[1]):
     i, j = int(ij[0]), int(ij[1])
     if i in nbrs.keys():
         nbrs[i] = nbrs[i].union({j})
     else:
-        nbrs[i] = {j}
+        nbrs[i] = {i, j}
 
 for i in nbrs.keys():
     nbrs_set = nbrs[i]
-    all_nodes = {i for i in range(A.shape[0])}
     not_nbrs[i] = all_nodes - nbrs_set
 
 # plt.matshow(A_model.numpy())
@@ -110,13 +110,14 @@ model.n_samples = len(train)
 
 
 def energy_loss(w_ij, w_ik):
-    return w_ij.pow(2.0) + torch.exp(-w_ik)
+    energy = w_ij.pow(2.0) + torch.exp(-w_ik)
+    return energy.mean()*0.6
 
 
 for e in range(n_epochs):
     t0 = time.time()
 
-    triplets = u.sample_triplets(nbrs, not_nbrs, 200)
+    triplets = u.sample_triplets(nbrs, not_nbrs, 500)
     ids, i, j, k = triplets
 
     model.train()
@@ -137,7 +138,7 @@ for e in range(n_epochs):
     weights = torch.where(gt < 0.5, x * nonzero_ratio, x * zero_ratio).to(device)
     loss_norm = weights.sum() / len(train)
 
-    loss_weight = 0.6
+    loss_weight = 1.0
     # loss = criterion(out_reconstruction, gt_reconsturction, weight=weights) * loss_weight/ loss_norm
     loss = criterion(gt, out_reconstruction, weights) * loss_weight
     # loss = 0.0
