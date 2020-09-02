@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 
 print(torch.cuda.is_available())
 
-A, X, Y = load_graph('citeseer')
+A, X, Y = load_graph('cora')
 
 # plt.matshow(A)
 # plt.show()
@@ -27,8 +27,8 @@ torch.random.manual_seed(seed // 3)
 A = torch.tensor(A.astype('float32'))
 
 # don't use features
-X = torch.eye(A.shape[0]).type(torch.float32)
-X = torch.tensor(X.numpy().astype('float32'))
+# X = torch.eye(A.shape[0]).type(torch.float32)
+X = torch.tensor(X.astype('float32'))
 
 n_epochs = 400
 n_splits = 10
@@ -62,8 +62,8 @@ A_model = A_model.type(torch.float32)
 # plt.matshow(A_model.numpy())
 # plt.show()
 
-model = GCNAutoencoder(n_features=feat_size, hidden_dim=32, code_dim=16, A=A_model)
-# model = GcnVAE(n_features=feat_size, n_samples=A.shape[0], hidden_dim=32, code_dim=16, A=A_model)
+# model = GCNAutoencoder(n_features=feat_size, hidden_dim=32, code_dim=16, A=A_model)
+model = GcnVAE(n_features=feat_size, n_samples=A.shape[0], hidden_dim=32, code_dim=16, A=A_model)
 model.to(device)
 
 opt = torch.optim.Adam(lr=0.01, params=model.parameters())
@@ -85,36 +85,26 @@ for e in range(n_epochs):
 
     forward = model.forward(X)
     out = forward.view(-1)[train]
-    ground_truth_links = A.view(-1)[train]
+    ground_truth_links = A.reshape(-1)[train]
 
     x = torch.ones(ground_truth_links.shape[0]).to(device)
     weights = torch.where(ground_truth_links < 0.5, x * nonzero_ratio, x * zero_ratio).to(device)
     loss_norm = weights.sum() / len(train)
 
-    loss = criterion(out, ground_truth_links, weight=weights)
+    loss = criterion(out, ground_truth_links, weight=weights) / loss_norm
     if isinstance(model, GcnVAE):
         loss += model.kl_divergence()
 
     loss.backward()
     opt.step()
 
-    val_auc = u.test_auc(model, X, A, val)
 
-    with torch.no_grad():
-        val_loss = float(criterion(forward.view(-1)[val], A.view(-1)[val].data))
-
-    if e > 0:
-        if val_loss < val_history[-1] - val_eps_early_stop:
-            not_improving_counter = 0
-        elif not_improving_counter > not_improving_max_step:
-            print("Breaking at epoch: ", e)
-            break
-        else:
-            not_improving_counter += 1
-
-    val_history += [val_loss]
     t1 = time.time()
     if (e + 1) % 10 == 0:
+        val_auc = u.test_auc(model, X, A, val)
+        with torch.no_grad():
+            val_loss = float(criterion(forward.reshape(-1)[val], A.reshape(-1)[val].data))
+
         print(
             "Epoch: {0}; train loss: {1:.4f}; val loss: {2:.4f}; val auc: {3:.4f}; time: {4:.4f}".format(e + 1, loss,
                                                                                                          val_loss,

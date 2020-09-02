@@ -41,7 +41,7 @@ def test_auc(model, X, A, idx, test=False):
     #     plt.matshow(a_cap)
     #     plt.show()
 
-    groundtruth = A.view(-1)[idx].cpu().numpy()
+    groundtruth = A.reshape(-1)[idx].cpu().numpy()
 
     auc_score = roc_auc_score(y_score=predicted, y_true=groundtruth)
     if test:

@@ -7,8 +7,8 @@ def load_graph(dataset_name):
     if dataset_name == 'cora' or dataset_name == 'citeseer':
         dataset_filename = 'datasets/' + dataset_name + "/{}.h5".format(dataset_name)
 
-        if os.path.exists(dataset_filename):
-            # if False:
+        # if os.path.exists(dataset_filename):
+        if False:
             print("Reading dataset '{}' from file".format(dataset_name))
             dataset_file = h5py.File(dataset_filename, 'r')
             A = dataset_file['A'][:]
@@ -104,22 +104,22 @@ def load_graph(dataset_name):
             print("Number of labels: ", dim_labels)
             print("Feature dimension: ", dim_feature)
 
+            fake_idx = []
+
             for ii, key in enumerate(list(features.keys())):
                 feat = np.array(features[key])
                 idx = all_ids.index(key)
 
                 # handles missing features case for citeseer
-                fake_idx = []
 
                 try:
                     X[idx] = feat
                     label_idx = all_labels.index(labels[key])
                     L[idx, label_idx] = 1
-                except:
+                except IndexError:
                     fake_idx += [idx]
-
-                X = np.delete(X, fake_idx, axis=0)
-                X = np.delete(X, fake_idx, axis=1)
+            A = np.delete(A, fake_idx, axis=0)
+            A = np.delete(A, fake_idx, axis=1)
 
             dataset_file = h5py.File(dataset_filename, 'w')
             dataset_file.create_dataset('A', data=A)
