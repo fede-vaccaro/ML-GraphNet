@@ -20,7 +20,7 @@ np.random.seed(seed // 3)
 
 print(torch.cuda.is_available())
 
-dataset_name = 'facebook'
+dataset_name = 'cora'
 A, X, Y = load_graph(dataset_name)
 
 # plt.matshow(A)
@@ -46,7 +46,7 @@ device = torch.device("cuda")
 
 def dvne_loss(gt, pred):
         expected = (gt*(gt - pred)) ** 2
-        # expect = expect[torch.where(expect > 0)]
+        expected = expected[torch.where(expected > 0)]
         return expected.mean()
 
 
@@ -105,7 +105,6 @@ for i in nbrs.keys():
 # plt.matshow(A_model.numpy())
 # plt.show()
 
-# model = GCNAutoencoder(n_features=feat_size, hidden_dim=32, code_dim=16, A=A_model)
 model = DVNE(n_samples=A.shape[0], n_features=A.shape[0])
 model.to(device)
 
@@ -131,7 +130,7 @@ def energy_loss(w_ij, w_ik):
 for e in range(n_epochs):
     t0 = time.time()
 
-    triplets = u.sample_triplets(nbrs, not_nbrs, 200)
+    triplets = u.sample_triplets(nbrs, not_nbrs, 300)
     i, j, k = triplets
 
     model.train()
@@ -164,8 +163,6 @@ for e in range(n_epochs):
         t = energy_loss(w_ij, w_ik)
         loss += t
 
-    if isinstance(model, GcnVAE):
-        loss += model.kl_divergence()
 
     loss.backward()
     opt.step()
@@ -193,4 +190,4 @@ if dataset_name == 'cora':
         encodings, mean, std = model.encode(P.to(device))
         embeddings = torch.cat([mean, std], dim=1)
 
-        dv.reduct_and_visualize(embeddings.cpu().numpy(), Y.argmax(axis=1))
+        dv.reduct_and_visualize(encodings.cpu().numpy(), Y.argmax(axis=1))

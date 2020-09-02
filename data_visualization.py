@@ -1,4 +1,5 @@
 from sklearn.manifold import TSNE
+from sklearn.decomposition import PCA
 import seaborn as sns
 import matplotlib.pyplot as plt
 import pandas as pd

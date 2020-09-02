@@ -37,7 +37,7 @@ class GCNAutoencoder(nn.Module):
 
 
 class DVNE(nn.Module):
-    def __init__(self, n_features, n_samples, hidden_dim=512, code_dim=16):
+    def __init__(self, n_features, n_samples, hidden_dim=512, code_dim=128):
         super().__init__()
         self.hidden = nn.Linear(in_features=n_features, out_features=hidden_dim)
 
@@ -46,6 +46,12 @@ class DVNE(nn.Module):
 
         self.decoder = nn.Linear(in_features=code_dim, out_features=hidden_dim)
         self.output = nn.Linear(in_features=hidden_dim, out_features=n_features)
+
+        # nn.init.xavier_uniform_(self.hidden.weight, gain=nn.init.calculate_gain('relu'))
+        # nn.init.xavier_uniform_(self.means.weight, gain=nn.init.calculate_gain('linear'))
+        # nn.init.xavier_uniform_(self.std.weight, gain=nn.init.calculate_gain('linear'))
+        # nn.init.xavier_uniform_(self.decoder.weight, gain=nn.init.calculate_gain('relu'))
+        # nn.init.xavier_uniform_(self.output.weight, gain=nn.init.calculate_gain('sigmoid'))
 
     def wasserstein(self, n_a, n_b):
         m_a, std_a = n_a
@@ -72,8 +78,7 @@ class DVNE(nn.Module):
         encoded, means, std = self.encode(x)
 
         decoded = F.relu(self.decoder(encoded))
-
-        output = self.output(decoded)
+        output = torch.sigmoid(self.output(decoded))
 
         prediction = output
         return prediction, means, std
@@ -90,17 +95,16 @@ class GcnVAE(nn.Module):
         transform = l.KipfAndWillingConv.compute_transform(A)
 
         self.transform = u.dense_to_sparse(transform)
-        self.n_samples = n_samples
+        self.n_samples = A.shape[0]
 
     def to(self, device):
         self.transform = self.transform.to(device)
         super().to(device)
 
     def kl_divergence(self):
-        kl = 2.0 * self.log_std - self.means.pow(2.0) - (2.0 * self.log_std).exp() + 1
-        kl = kl.sum(dim=1).mean() * 0.5 / self.n_samples
-
-        return -kl
+        kl = 2.0 * self.log_std - self.means.pow(2.0) - (self.log_std).exp().pow(2.0) + 1
+        kl = kl.sum(dim=1).mean() * 0.5
+        return -kl / self.n_samples
 
     def forward(self, x):
         encoded, log_std, means = self.encode(x)
@@ -119,7 +123,8 @@ class GcnVAE(nn.Module):
         hidden = F.relu(hidden)
         hidden = F.dropout(hidden, p=0.5, training=self.training)
         means = self.means_encoder(hidden, self.transform)
-        log_std = 0.5 * self.log_std_encoder(hidden, self.transform)
+
+        log_std = self.log_std_encoder(hidden, self.transform)
         std = torch.exp(log_std)
         # reparametrisation trick
         encoded = means + std * torch.rand_like(std)

@@ -24,7 +24,7 @@ np.random.seed(seed // 3)
 print(torch.cuda.is_available())
 
 dataset_name = 'cora'
-A, X, Y = load_graph(dataset_name)
+A, X, Y = load_graph('cora')
 
 # plt.matshow(A)
 # plt.show()
@@ -32,8 +32,8 @@ A, X, Y = load_graph(dataset_name)
 A = torch.tensor(A.astype('float32'))
 
 # don't use features
-X = torch.eye(A.shape[0]).type(torch.float32)
-# X = torch.tensor(X.astype('float32'))
+# X = torch.eye(A.shape[0]).type(torch.float32)
+X = torch.tensor(X.astype('float32'))
 
 n_epochs = 400
 n_splits = 10
@@ -67,8 +67,8 @@ A_model = A_model.type(torch.float32)
 # plt.matshow(A_model.numpy())
 # plt.show()
 
-# model = GCNAutoencoder(n_features=feat_size, hidden_dim=32, code_dim=16, A=A_model)
-model = GcnVAE(n_features=feat_size, n_samples=A.shape[0], hidden_dim=32, code_dim=16, A=A_model)
+model = GCNAutoencoder(n_features=feat_size, hidden_dim=32, code_dim=16, A=A_model)
+# model = GcnVAE(n_features=feat_size, n_samples=A.shape[0], hidden_dim=32, code_dim=16, A=A_model)
 model.to(device)
 
 opt = torch.optim.Adam(lr=0.01, params=model.parameters())
