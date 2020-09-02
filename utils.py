@@ -26,7 +26,7 @@ def test_acc(model, X, y, idx):
 
 
 @torch.no_grad()
-def test_auc(model, X, A, idx, test=False):
+def test_auc_dvna(model, X, A, idx, test=False):
     model.eval()
 
     # fn = torch.sigmoid
@@ -39,6 +39,34 @@ def test_auc(model, X, A, idx, test=False):
     a_cap = dist_m + dist_s
     a_cap = (a_cap.max() - a_cap)/a_cap.max()
 
+    predicted = a_cap.reshape(-1)[idx].cpu().numpy()
+
+    # if test:
+    #     a_cap = a_cap.cpu().numpy()
+    #     a_cap[a_cap <= 0.75] = 0
+    #     a_cap[a_cap > 0.75] = 1
+    #
+    #     plt.matshow(a_cap)
+    #     plt.show()
+
+    groundtruth = A.reshape(-1)[idx].cpu().numpy()
+
+    auc_score = roc_auc_score(y_score=predicted, y_true=groundtruth)
+    if test:
+        fpr, tpr, thresholds = roc_curve(y_score=predicted, y_true=groundtruth)
+        # plot_roc(fpr, tpr)
+        # print("AUC: ", auc(fpr, tpr))
+
+    return auc_score
+
+@torch.no_grad()
+def test_auc_gae(model, X, A, idx, test=False):
+    model.eval()
+
+    fn = torch.sigmoid
+    a_cap = model.decode(X)
+    a_cap = fn(a_cap)
+
     predicted = a_cap.view(-1)[idx].cpu().numpy()
 
     # if test:
@@ -49,7 +77,7 @@ def test_auc(model, X, A, idx, test=False):
     #     plt.matshow(a_cap)
     #     plt.show()
 
-    groundtruth = A.view(-1)[idx].cpu().numpy()
+    groundtruth = A.reshape(-1)[idx].cpu().numpy()
 
     auc_score = roc_auc_score(y_score=predicted, y_true=groundtruth)
     if test:
@@ -58,7 +86,6 @@ def test_auc(model, X, A, idx, test=False):
         # print("AUC: ", auc(fpr, tpr))
 
     return auc_score
-
 
 def sample_triplets(nbrs, not_nbrs, n_triplets):
     assert n_triplets <= len(nbrs.keys())

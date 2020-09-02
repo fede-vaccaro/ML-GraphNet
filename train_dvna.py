@@ -49,7 +49,8 @@ class DVNELoss(nn.Module):
         super(DVNELoss, self).__init__()
 
     def forward(self, gt, pred, weights=None):
-        expected = (gt*(gt - pred)) ** 2
+        expected = ((gt - pred)) ** 2
+        expected = expected[torch.where(expected > 0)]
         #if weights is not None:
         #    expected *= weights
         expected = expected.mean()
@@ -151,8 +152,8 @@ for e in range(n_epochs):
     gt_k = P[k, :]
 
     out_reconstruction = torch.cat([out_i, out_j, out_k], dim=0).view(-1)
-    gt = torch.cat([gt_i, gt_j, gt_k], dim=0).view(-1).cuda()
-    a_gt = torch.cat([A[i, :], A[j, :], A[j, :]], dim=0).view(-1).cuda()
+    gt = torch.cat([gt_i, gt_j, gt_k], dim=0).view(-1).to(device)
+    a_gt = torch.cat([A[i, :], A[j, :], A[j, :]], dim=0).view(-1).to(device)
 
     x = torch.ones(gt.shape[0]).to(device)
     weights = torch.where(gt == 0.0, x * float(nonzero_ratio), x * float(zero_ratio)).to(device)
@@ -179,8 +180,8 @@ for e in range(n_epochs):
     if (e + 1) % 10 == 0:
         if len(val) > 0:
             with torch.no_grad():
-                val_loss = float(criterion((model.forward(A_model)[0]).view(-1)[val], A.view(-1)[val].data))
-            val_auc = u.test_auc(model, A_model, A, val)
+                val_loss = float(criterion((model.forward(A_model)[0]).reshape(-1)[val], A.reshape(-1)[val].data))
+            val_auc = u.test_auc_dvna(model, A_model, A, val)
         else:
             val_auc = np.nan
             val_loss = np.nan
@@ -190,5 +191,5 @@ for e in range(n_epochs):
                                                                                                          val_auc,
                                                                                                          t1 - t0))
 
-test_auc = u.test_auc(model, A_model, A, idx=test, test=True)
+test_auc = u.test_auc_dvna(model, A_model, A, idx=test, test=True)
 print("Test auc {}: ", test_auc)
