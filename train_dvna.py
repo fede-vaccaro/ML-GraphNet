@@ -36,7 +36,7 @@ X = torch.tensor(X.astype('float32'))
 D_inv = A.sum(dim=1).pow(-1)
 P = torch.diag(D_inv).matmul(A)
 
-n_epochs = 10000
+n_epochs = 4000
 n_splits = 10
 
 feat_size = X.shape[1]
