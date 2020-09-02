@@ -4,11 +4,11 @@ import os
 
 
 def load_graph(dataset_name):
-    if dataset_name == 'cora' or dataset_name == 'citeseer':
+    if dataset_name == 'cora' or dataset_name == 'citeseer' or dataset_name == 'facebook':
         dataset_filename = 'datasets/' + dataset_name + "/{}.h5".format(dataset_name)
 
-        if os.path.exists(dataset_filename):
-        # if False:
+        # if os.path.exists(dataset_filename):
+        if False:
             print("Reading dataset '{}' from file".format(dataset_name))
             dataset_file = h5py.File(dataset_filename, 'r')
             A = dataset_file['A'][:]
@@ -22,15 +22,22 @@ def load_graph(dataset_name):
             dataset_file.close()
         else:
             print("Bulding dataset '{}'".format(dataset_name))
-            cites_txt = open('datasets/{}/{}.cites'.format(dataset_name, dataset_name), 'r')
-            content_txt = open('datasets/{}/{}.content'.format(dataset_name, dataset_name), 'r')
+            if dataset_name != 'facebook':
+                cites_txt = open('datasets/{}/{}.cites'.format(dataset_name, dataset_name), 'r')
+                content_txt = open('datasets/{}/{}.content'.format(dataset_name, dataset_name), 'r')
+            else:
+                cites_txt = open('datasets/{}/{}.txt'.format(dataset_name, dataset_name), 'r')
 
             # convert cites into a dictionary
             edges = []
             all_ids = set()
 
             for line in cites_txt.readlines():
-                line_ = line.rstrip().split("\t")
+                if dataset_name == 'facebook':
+                    line_ = line.rstrip().split(" ")
+                else:
+                    line_ = line.rstrip().split("\t")
+
 
                 cited_paper = line_[0]
                 citing_paper = line_[1]
@@ -70,6 +77,12 @@ def load_graph(dataset_name):
             print("Is symmetric: ", np.allclose(A, A.T, rtol=1e-05, atol=1e-08))
             # idx = i + j*n_col
             print("max: ", np.max(A))
+
+            if dataset_name == 'facebook':
+                X = np.eye(A.shape[0])
+                L = np.eye(A.shape[0])
+                return A, X, L
+
             # convert content into features and labels
             features = {}
             labels = {}
@@ -122,7 +135,7 @@ def load_graph(dataset_name):
             A = np.delete(A, fake_idx, axis=0)
             A = np.delete(A, fake_idx, axis=1)
 
-            # check for isolated node
+            # check for isolated nodes
             a_sum = A.sum(axis=1)
             a_isolated = np.where(a_sum == 0.0)
 
@@ -139,3 +152,6 @@ def load_graph(dataset_name):
             dataset_file.close()
 
         return A, X, L
+    else:
+        print("Dataset '{}' not available".format(dataset_name))
+        raise ValueError

@@ -7,28 +7,33 @@ from sklearn.preprocessing import normalize
 import time
 import numpy as np
 import matplotlib.pyplot as plt
+import data_visualization as dv
+import random
 
 # implementation of SEMI-SUPERVISED CLASSIFICATION WITH GRAPH CONVOLUTIONAL NETWORKS - Kipf & Willing 2017
 # https://arxiv.org/pdf/1609.02907.pdf
 # and "Variational Graph Auto-Encoders" - Kipf & Willing 2016
 # https://arxiv.org/pdf/1611.07308.pdf
 
+seed = (2 ** 31 - 53423)
+torch.random.manual_seed(seed // 3)
+random.seed(seed // 3)
+np.random.seed(seed // 3)
+
+
 print(torch.cuda.is_available())
 
-A, X, Y = load_graph('cora')
+dataset_name = 'cora'
+A, X, Y = load_graph(dataset_name)
 
 # plt.matshow(A)
 # plt.show()
 
-seed = (2 ** 31)
-torch.random.manual_seed(seed // 3)
-# X = normalize(X.astype('float32'), 'l1')
-
 A = torch.tensor(A.astype('float32'))
 
 # don't use features
-# X = torch.eye(A.shape[0]).type(torch.float32)
-X = torch.tensor(X.astype('float32'))
+X = torch.eye(A.shape[0]).type(torch.float32)
+# X = torch.tensor(X.astype('float32'))
 
 n_epochs = 400
 n_splits = 10
@@ -113,3 +118,8 @@ for e in range(n_epochs):
 
 test_auc = u.test_auc_gae(model, X, A, test, test=True)
 print("Test auc {}: ", test_auc)
+
+if dataset_name == 'cora':
+    with torch.no_grad():
+        encoded, _, _ = model.encode(X)
+        dv.reduct_and_visualize(encoded.cpu().numpy(), Y.argmax(axis=1))

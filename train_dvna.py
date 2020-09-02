@@ -6,33 +6,37 @@ import utils as u
 from sklearn.preprocessing import normalize
 import time
 import numpy as np
-import matplotlib.pyplot as plt
-
+import data_visualization as dv
+import random
 # implementation of SEMI-SUPERVISED CLASSIFICATION WITH GRAPH CONVOLUTIONAL NETWORKS - Kipf & Willing 2017
 # https://arxiv.org/pdf/1609.02907.pdf
 # and "Variational Graph Auto-Encoders" - Kipf & Willing 2016
 # https://arxiv.org/pdf/1611.07308.pdf
 
+seed = (2 ** 31 - 53423)
+torch.random.manual_seed(seed // 3)
+random.seed(seed // 3)
+np.random.seed(seed // 3)
+
 print(torch.cuda.is_available())
 
-A, X, Y = load_graph('cora')
+dataset_name = 'facebook'
+A, X, Y = load_graph(dataset_name)
 
 # plt.matshow(A)
 # plt.show()
 
-seed = (2 ** 31)
-torch.random.manual_seed(seed // 3)
+
 # X = normalize(X.astype('float32'), 'l1')
 
 A = torch.tensor(A.astype('float32'))
 # X = torch.eye(A.shape[0]).type(torch.float32)
 X = torch.tensor(X.astype('float32'))
 
-
 D_inv = A.sum(dim=1).pow(-1)
 P = torch.diag(D_inv).matmul(A)
 
-n_epochs = 4000
+n_epochs = 10000
 n_splits = 10
 
 feat_size = X.shape[1]
@@ -40,23 +44,13 @@ n_classes = Y.shape[1]
 
 device = torch.device("cuda")
 
-# criterion = F.binary_cross_entropy
-criterion = F.binary_cross_entropy_with_logits
-import torch.nn as nn
+def dvne_loss(gt, pred):
+        expected = (gt*(gt - pred)) ** 2
+        # expect = expect[torch.where(expect > 0)]
+        return expected.mean()
 
-class DVNELoss(nn.Module):
-    def __init__(self):
-        super(DVNELoss, self).__init__()
 
-    def forward(self, gt, pred, weights=None):
-        expected = ((gt - pred)) ** 2
-        expected = expected[torch.where(expected > 0)]
-        #if weights is not None:
-        #    expected *= weights
-        expected = expected.mean()
-        return expected
-
-criterion = DVNELoss()
+criterion = dvne_loss
 
 val_history = []
 val_eps_early_stop = 1e-6
@@ -77,7 +71,7 @@ A_model += A_model.T
 #########################################
 ## transform A_model into transition matrix
 
-A_model_d_inv = 1/A_model.sum(axis=1)
+A_model_d_inv = 1 / A_model.sum(axis=1)
 A_model_d_inv[A_model_d_inv == np.inf] = 0
 A_model_d_inv = np.diag(A_model_d_inv)
 A_model = A_model.dot(A_model_d_inv)
@@ -161,7 +155,7 @@ for e in range(n_epochs):
 
     loss_weight = 0.6
     # loss = criterion(out_reconstruction, gt_reconsturction, weight=weights) * loss_weight/ loss_norm
-    loss = criterion(gt, out_reconstruction, a_gt) * loss_weight
+    loss = criterion(gt, out_reconstruction) * loss_weight
 
     # loss = 0.0
     if isinstance(model, DVNE):
@@ -193,3 +187,10 @@ for e in range(n_epochs):
 
 test_auc = u.test_auc_dvna(model, A_model, A, idx=test, test=True)
 print("Test auc {}: ", test_auc)
+
+if dataset_name == 'cora':
+    with torch.no_grad():
+        encodings, mean, std = model.encode(P.to(device))
+        embeddings = torch.cat([mean, std], dim=1)
+
+        dv.reduct_and_visualize(embeddings.cpu().numpy(), Y.argmax(axis=1))

@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 import random
 from torch import nn as nn
 
-# plt.switch_backend('TkAgg') #TkAgg (instead Qt4Agg)
 
+# plt.switch_backend('TkAgg') #TkAgg (instead Qt4Agg)
 
 @torch.no_grad()
 def test_acc(model, X, y, idx):
@@ -23,21 +23,19 @@ def test_acc(model, X, y, idx):
     return correct / total
 
 
-
-
 @torch.no_grad()
 def test_auc_dvna(model, X, A, idx, test=False):
     model.eval()
 
     # fn = torch.sigmoid
 
-    _, means, std = model.decode(X)
+    _, means, std = model.encode(X)
 
     dist_m = torch.cdist(means, means).pow(2)
     dist_s = torch.cdist(std, std).pow(2)
 
     a_cap = dist_m + dist_s
-    a_cap = (a_cap.max() - a_cap)/a_cap.max()
+    a_cap = (a_cap.max() - a_cap) / a_cap.max()
 
     predicted = a_cap.reshape(-1)[idx].cpu().numpy()
 
@@ -59,15 +57,20 @@ def test_auc_dvna(model, X, A, idx, test=False):
 
     return auc_score
 
+
 @torch.no_grad()
 def test_auc_gae(model, X, A, idx, test=False):
     model.eval()
 
     fn = torch.sigmoid
-    a_cap = model.decode(X)
-    a_cap = fn(a_cap)
+    a_cap, _, _ = model.encode(X)
+    # a_cap = model.encode(X)
 
-    predicted = a_cap.view(-1)[idx].cpu().numpy()
+    a_cap = a_cap / a_cap.norm(p=2, dim=0)
+    a_cap = a_cap @ a_cap.t()
+    a_cap = a_cap.cpu()
+
+    predicted = a_cap.view(-1)[idx].numpy()
 
     # if test:
     #     a_cap = a_cap.cpu().numpy()
@@ -86,6 +89,7 @@ def test_auc_gae(model, X, A, idx, test=False):
         # print("AUC: ", auc(fpr, tpr))
 
     return auc_score
+
 
 def sample_triplets(nbrs, not_nbrs, n_triplets):
     assert n_triplets <= len(nbrs.keys())
@@ -150,8 +154,8 @@ def split_dataset(A, seed):
     arg_ones_values = np.argwhere(values > 0)
     arg_zero_values = np.argwhere(values == 0)
 
-    indices_ones = np.random.RandomState(seed=seed).permutation(len(arg_ones_values))
-    indices_zeros = np.random.RandomState(seed=seed).permutation(len(arg_zero_values))
+    indices_ones = np.random.permutation(len(arg_ones_values))
+    indices_zeros = np.random.permutation(len(arg_zero_values))
 
     test_split = 0.10
     val_split = 0.15
