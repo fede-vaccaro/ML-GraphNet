@@ -11,10 +11,14 @@ class KipfAndWillingConv(nn.Module):
         self.filters = torch.nn.Parameter(torch.Tensor(n_features, n_filters), requires_grad=True)
         self.reset_parameters()
 
-    def forward(self, x, transform):
-        XF = torch.mm(x, self.filters)
-        out = torch.sparse.mm(transform, XF)
-        return out
+    def forward(self, transform, x=None):
+        if x is not None:
+            XF = torch.mm(x, self.filters)
+            out = torch.sparse.mm(transform, XF)
+            return out
+        else:
+            out = torch.sparse.mm(transform, self.filters)
+            return out
 
     def reset_parameters(self):
         init.xavier_normal_(self.filters, 1.0)

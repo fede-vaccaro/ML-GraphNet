@@ -22,10 +22,10 @@ class GCNAutoencoder(nn.Module):
         return prediction
 
     def encode(self, x):
-        hidden = self.hidden(x, self.transform)
+        hidden = self.hidden(self.transform, x)
         hidden = F.relu(hidden)
         hidden = F.dropout(hidden, p=0.5, training=self.training)
-        encoded = self.encoder(hidden, self.transform)
+        encoded = self.encoder(self.transform, hidden)
         return encoded, None, None
 
     def reg(self, lambda_reg=1e-5):
@@ -119,12 +119,12 @@ class GcnVAE(nn.Module):
         return prediction
 
     def encode(self, x):
-        hidden = self.hidden(x, self.transform)
+        hidden = self.hidden(self.transform, x)
         hidden = F.relu(hidden)
         hidden = F.dropout(hidden, p=0.5, training=self.training)
-        means = self.means_encoder(hidden, self.transform)
+        means = self.means_encoder(self.transform, hidden)
+        log_std = self.log_std_encoder(self.transform, hidden)
 
-        log_std = self.log_std_encoder(hidden, self.transform)
         std = torch.exp(log_std)
         # reparametrisation trick
         encoded = means + std * torch.rand_like(std)

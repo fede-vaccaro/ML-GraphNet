@@ -22,7 +22,7 @@ ap.add_argument("-d", "--dataset", type=str, default="cora",
                 help="Choice one between 'cora', 'citeseer', 'facebook', 'pubmed'")
 ap.add_argument("-v", "--visualize", action='store_true',
                 help="For rendering embeddings (only available for 'cora' dataset)")
-ap.add_argument("-dv", "--device", type=str, default='gpu',
+ap.add_argument("-dv", "--device", type=str, default='cpu',
                 help="Visualize embeddings (just for 'cora' dataset)")
 
 args = vars(ap.parse_args())
@@ -85,23 +85,23 @@ print("Not improving epsilon: ", val_eps_early_stop)
 # A += torch.eye(A.shape[0])
 train_ones_indices, train, val, test = u.split_dataset(A, seed=seed)
 
-A_model = np.zeros(A.shape).astype('float32')
-A_model[train_ones_indices] = 1
-A_model += A_model.T
+A_train = np.zeros(A.shape).astype('float32')
+A_train[train_ones_indices] = 1
+A_train += A_train.T
 # np.fill_diagonal(A_model, 1)
 
 #########################################
 ## transform A_model into transition matrix
 
-A_model_d_inv = 1 / A_model.sum(axis=1)
-A_model_d_inv[A_model_d_inv == np.inf] = 0
-A_model_d_inv = np.diag(A_model_d_inv)
-A_model = A_model.dot(A_model_d_inv)
+A_train_d_inv = 1 / A_train.sum(axis=1)
+A_train_d_inv[A_train_d_inv == np.inf] = 0
+A_train_d_inv = np.diag(A_train_d_inv)
+A_train = A_train.dot(A_train_d_inv)
 
 ########################################
 
-A_model = torch.from_numpy(A_model)
-A_model = A_model.type(torch.float32)
+A_train = torch.from_numpy(A_train)
+A_train = A_train.type(torch.float32)
 # sample triplets
 # nbrs is a dict nbrs[i] -> {j1,j2,...,}
 nbrs = {}
@@ -139,7 +139,7 @@ zero_ratio = 1 - nonzero_ratio
 
 X = X.to(device)
 A = A.to(device)
-A_model = A_model.to(device)
+A_train = A_train.to(device)
 
 model.n_samples = len(train)
 
@@ -158,9 +158,9 @@ for e in range(n_epochs):
     model.train()
     opt.zero_grad()
 
-    out_i, mi, stdi = model.forward(A_model[i, :])
-    out_j, mj, stdj = model.forward(A_model[j, :])
-    out_k, mk, stdk = model.forward(A_model[k, :])
+    out_i, mi, stdi = model.forward(A_train[i, :])
+    out_j, mj, stdj = model.forward(A_train[j, :])
+    out_k, mk, stdk = model.forward(A_train[k, :])
 
     gt_i = P[i, :]
     gt_j = P[j, :]
@@ -193,8 +193,8 @@ for e in range(n_epochs):
     if (e + 1) % 100 == 0:
         if len(val) > 0:
             with torch.no_grad():
-                val_loss = float(criterion((model.forward(A_model)[0]).reshape(-1)[val], A.reshape(-1)[val].data))
-            val_auc = u.test_auc_dvna(model, A_model, A, val)
+                val_loss = float(criterion((model.forward(A_train)[0]).reshape(-1)[val], A.reshape(-1)[val].data))
+            val_auc = u.test_auc_dvna(model, A_train, A, val)
         else:
             val_auc = np.nan
             val_loss = np.nan
@@ -204,7 +204,7 @@ for e in range(n_epochs):
                                                                                                          val_auc,
                                                                                                          t1 - t0))
 
-test_auc = u.test_auc_dvna(model, A_model, A, idx=test, test=True)
+test_auc = u.test_auc_dvna(model, A_train, A, idx=test, test=True)
 print("Test auc: ", test_auc)
 
 if dataset_name == 'cora' and visualize:

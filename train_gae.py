@@ -51,20 +51,19 @@ A, X, Y = load_graph(dataset_name)
 
 A = torch.tensor(A.astype('float32'))
 
-# don't use features
 if use_features:
     assert dataset_name == 'cora', "Node features available just for 'cora' dataset"
     print("Using features")
     X = torch.tensor(X.astype('float32'))
 else:
-    X = torch.eye(A.shape[0]).type(torch.float32)
+    X = None
+    # X = torch.eye(A.shape[0]).type(torch.float32)
 
 
 n_epochs = 400
 n_splits = 10
 
-feat_size = X.shape[1]
-n_classes = Y.shape[1]
+feat_size = X.shape[1] if X else A.shape[0]
 
 cuda_is_available = torch.cuda.is_available()
 print("Cuda: ", cuda_is_available)
@@ -88,20 +87,20 @@ print("Not improving epsilon: ", val_eps_early_stop)
 # A += torch.eye(A.shape[0])
 train_, train, val, test = u.split_dataset(A, seed=seed)
 
-A_model = np.zeros(A.shape).astype('float32')
-A_model[train_] = 1
-A_model += A_model.T
-np.fill_diagonal(A_model, 1)
-A_model = torch.from_numpy(A_model)
-A_model = A_model.type(torch.float32)
+A_train = np.zeros(A.shape).astype('float32')
+A_train[train_] = 1
+A_train += A_train.T
+np.fill_diagonal(A_train, 1)
+A_train = torch.from_numpy(A_train)
+A_train = A_train.type(torch.float32)
 
 # plt.matshow(A_model.numpy())
 # plt.show()
 
 if method == 'gae':
-    model = GCNAutoencoder(n_features=feat_size, hidden_dim=32, code_dim=16, A=A_model)
+    model = GCNAutoencoder(n_features=feat_size, hidden_dim=32, code_dim=16, A=A_train)
 elif method == 'vgae':
-    model = GcnVAE(n_features=feat_size, n_samples=A.shape[0], hidden_dim=32, code_dim=16, A=A_model)
+    model = GcnVAE(n_features=feat_size, n_samples=A.shape[0], hidden_dim=32, code_dim=16, A=A_train)
 else:
     raise ValueError("Method {} not available!".format(method))
 
@@ -115,7 +114,8 @@ lambda_reg = 5e-4
 nonzero_ratio = A.sum() / (A.shape[0] ** 2)
 zero_ratio = 1 - nonzero_ratio
 
-X = X.to(device)
+if X:
+    X = X.to(device)
 A = A.to(device)
 
 model.n_samples = len(train)
