@@ -45,7 +45,7 @@ if cuda_is_available and device_ == 'gpu':
 else:
     device = torch.device("cpu")
 
-dataset_name = 'cora'
+dataset_name = dataset
 A, X, Y = load_graph(dataset_name)
 
 # plt.matshow(A)
