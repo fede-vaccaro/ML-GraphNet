@@ -1,9 +1,9 @@
 import numpy as np
 import h5py
 import os
+from scipy.sparse import coo_matrix
 
-
-def load_graph(dataset_name):
+def load_graph(dataset_name, sparse=False):
     if dataset_name == 'cora' or dataset_name == 'citeseer' or dataset_name == 'facebook' or dataset_name == 'pubmed':
         dataset_filename = 'datasets/' + dataset_name + "/{}.h5".format(dataset_name)
 
@@ -39,7 +39,6 @@ def load_graph(dataset_name):
                 else:
                     line_ = line.rstrip().split("\t")
 
-
                 cited_paper = line_[0]
                 citing_paper = line_[1]
 
@@ -59,30 +58,44 @@ def load_graph(dataset_name):
 
                 edge_ids += [(idx, idy)]
 
-            # makes matrix A
-            dim = len(all_ids)
-            A = np.zeros((dim, dim)).astype('int16')
 
-            for edge in edge_ids:
-                ii = edge[0]
-                jj = edge[1]
+            if not sparse:
+                # makes matrix A
+                dim = len(all_ids)
+                A = np.zeros((dim, dim)).astype('int16')
 
-                # assert A[ii, jj] != 1, "indices: {}, {}; corresponding to ids {}, {}: ".format(ii, jj, all_ids[ii], all_ids[jj])
-                # assert ii != jj, print(edge_ids.index(edge))
+                for edge in edge_ids:
+                    ii = edge[0]
+                    jj = edge[1]
 
-                A[ii, jj] = 1
-                A[jj, ii] = 1
+                    # assert A[ii, jj] != 1, "indices: {}, {}; corresponding to ids {}, {}: ".format(ii, jj, all_ids[ii], all_ids[jj])
+                    # assert ii != jj, print(edge_ids.index(edge))
 
-            print("Number of edges: ", A.sum().sum() // 2)
-            print("Number of nodes: ", dim)
-            print("Is symmetric: ", np.allclose(A, A.T, rtol=1e-05, atol=1e-08))
-            # idx = i + j*n_col
-            print("max: ", np.max(A))
+                    A[ii, jj] = 1
+                    A[jj, ii] = 1
 
-            if dataset_name == 'facebook' or dataset_name == 'pubmed':
-                X = np.eye(A.shape[0])
-                L = np.eye(A.shape[0])
-                return A, X, L
+                print("Number of edges: ", A.sum().sum() // 2)
+                print("Number of nodes: ", dim)
+                print("Is symmetric: ", np.allclose(A, A.T, rtol=1e-05, atol=1e-08))
+                print("max: ", np.max(A))
+
+                if dataset_name == 'facebook' or dataset_name == 'pubmed':
+                    X = np.eye(A.shape[0])
+                    L = np.eye(A.shape[0])
+                    return A, X, L
+            else:
+                rows = [edge[0] for edge in edge_ids] + [edge[1] for edge in edge_ids]
+                cols = [edge[1] for edge in edge_ids] + [edge[0] for edge in edge_ids]
+                dim = len(all_ids)
+                data = np.ones(len(edge_ids)*2)
+
+                A = coo_matrix((data, (rows, cols)), shape=(dim, dim), dtype='float32')
+
+                # identity matrix for X
+                rows_cols_x = [i for i in range(dim)]
+                X = coo_matrix((np.ones(dim), (rows_cols_x, rows_cols_x)), shape=(dim, dim), dtype='float32')
+
+                return A, X, None
 
             # convert content into features and labels
             features = {}

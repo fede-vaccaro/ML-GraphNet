@@ -47,12 +47,6 @@ class DVNE(nn.Module):
         self.decoder = nn.Linear(in_features=code_dim, out_features=hidden_dim)
         self.output = nn.Linear(in_features=hidden_dim, out_features=n_features)
 
-        # nn.init.xavier_uniform_(self.hidden.weight, gain=nn.init.calculate_gain('relu'))
-        # nn.init.xavier_uniform_(self.means.weight, gain=nn.init.calculate_gain('linear'))
-        # nn.init.xavier_uniform_(self.std.weight, gain=nn.init.calculate_gain('linear'))
-        # nn.init.xavier_uniform_(self.decoder.weight, gain=nn.init.calculate_gain('relu'))
-        # nn.init.xavier_uniform_(self.output.weight, gain=nn.init.calculate_gain('sigmoid'))
-
     def wasserstein(self, n_a, n_b):
         m_a, std_a = n_a
         m_b, std_b = n_b

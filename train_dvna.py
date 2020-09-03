@@ -8,6 +8,7 @@ import time
 import numpy as np
 import data_visualization as dv
 import random
+from scipy import sparse as sp
 # implementation of SEMI-SUPERVISED CLASSIFICATION WITH GRAPH CONVOLUTIONAL NETWORKS - Kipf & Willing 2017
 # https://arxiv.org/pdf/1609.02907.pdf
 # and "Variational Graph Auto-Encoders" - Kipf & Willing 2016
@@ -21,49 +22,20 @@ random.seed(seed // 3)
 np.random.seed(seed // 3)
 
 print(torch.cuda.is_available())
+device = torch.device("cuda")
 
 dataset_name = 'cora'
-A, X, Y = load_graph(dataset_name)
+sparse = True
+A, X, Y = load_graph(dataset_name, sparse=sparse)
 
 # plt.matshow(A)
 # plt.show()
 
-
-# X = normalize(X.astype('float32'), 'l1')
-
-A = torch.tensor(A.astype('float32'))
-# X = torch.eye(A.shape[0]).type(torch.float32)
-X = torch.tensor(X.astype('float32'))
-
-D_inv = A.sum(dim=1).pow(-1)
-P = torch.diag(D_inv).matmul(A)
-
-n_epochs = 4000
-n_splits = 10
-
-feat_size = X.shape[1]
-n_classes = Y.shape[1]
-
-device = torch.device("cuda")
-
-def dvne_loss(gt, pred):
-        expected = (gt*(gt - pred)) ** 2
-        expected = expected[torch.where(expected > 0)]
-        return expected.mean()
-
-
-criterion = dvne_loss
-
-val_history = []
-val_eps_early_stop = 1e-6
-
-not_improving_counter = 0
-not_improving_max_step = n_epochs
-
-print("Not improving epsilon: ", val_eps_early_stop)
+D_inv = np.array(1 / A.sum(axis = 1)).flatten()
+P = sp.diags([D_inv], [0]) * A
 
 # A += torch.eye(A.shape[0])
-train_ones_indices, train, val, test = u.split_dataset(A, seed=seed)
+train_ones_indices, train, val, test = u.split_dataset_sparse(A, seed=seed)
 
 A_model = np.zeros(A.shape).astype('float32')
 A_model[train_ones_indices] = 1
@@ -82,6 +54,16 @@ A_model = A_model.dot(A_model_d_inv)
 
 A_model = torch.from_numpy(A_model)
 A_model = A_model.type(torch.float32)
+
+A_model = u.dense_to_sparse(A_model)
+
+if not sparse:
+    A = torch.tensor(A.astype('float32'))
+    X = torch.tensor(X.astype('float32'))
+else:
+    A = u.scipy_coo_to_sparse(A)
+    X = u.scipy_coo_to_sparse(X)
+
 # sample triplets
 # nbrs is a dict nbrs[i] -> {j1,j2,...,}
 nbrs = {}
@@ -128,6 +110,10 @@ def energy_loss(w_ij, w_ik):
     energy = w_ij.pow(2.0) + torch.exp(-w_ik)
     return energy.mean()
 
+n_epochs = 4000
+n_splits = 10
+
+criterion = u.dvne_loss
 
 for e in range(n_epochs):
     t0 = time.time()
@@ -138,9 +124,11 @@ for e in range(n_epochs):
     model.train()
     opt.zero_grad()
 
-    out_i, mi, stdi = model.forward(A_model[i, :])
-    out_j, mj, stdj = model.forward(A_model[j, :])
-    out_k, mk, stdk = model.forward(A_model[k, :])
+    out, m, std = model.forward(A_model)
+
+    out_i, mi, stdi = out[i, :], m[i, :], std[i, :]  # model.forward(A_model[i, :])
+    out_j, mj, stdj = out[j, :], m[j, :], std[j, :]  # model.forward(A_model[i, :])
+    out_k, mk, stdk = out[k, :], m[k, :], std[k, :]  # model.forward(A_model[i, :])
 
     gt_i = P[i, :]
     gt_j = P[j, :]

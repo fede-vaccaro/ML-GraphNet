@@ -131,6 +131,14 @@ def dense_to_sparse(dense_matrix):
     return out
 
 
+def scipy_coo_to_sparse(coo_matrix):
+    indices = torch.tensor(list(zip(coo_matrix.row, coo_matrix.col)), dtype=torch.long).t()
+    values = torch.tensor(coo_matrix.data, dtype=torch.float32)
+    size = torch.Size([coo_matrix.shape[0], coo_matrix.shape[1]])
+    out = torch.sparse.FloatTensor(indices, values, size)
+    return out
+
+
 def indices_from_2d_to_1d(indices_list, side):
     # transforms a list of (i,j) indices (indices_list) from a matrix with shape (side,side)
     # to a single element index k.
@@ -215,3 +223,48 @@ def split_dataset(A, seed):
 
     return train_ones_indices, indices_from_2d_to_1d(train, A.shape[0]), indices_from_2d_to_1d(val, A.shape[
         0]), indices_from_2d_to_1d(test, A.shape[0])
+
+def split_dataset_sparse(A, seed):
+    A_integer = A.astype('int32')
+
+    edge_indices = np.array([A_integer.row, A_integer.col]).T
+    arg_ones_values = edge_indices[edge_indices[:, 0] < edge_indices[:, 1]]
+
+    indices_ones = np.random.permutation(arg_ones_values.shape[0])
+
+    test_split = 0.10
+    val_split = 0.15
+
+    # train split = 1.0 - val_split
+
+    # we want the test set is made by 10% of the total 1s
+    n_ones_test = (test_split * len(arg_ones_values)).__int__()
+    n_ones_val = (val_split * len(arg_ones_values)).__int__()
+    n_ones_train = (len(arg_ones_values)).__int__()
+
+    indices_test_ones = indices_ones[:n_ones_test]
+    indices_val_ones = indices_ones[n_ones_test:n_ones_val]
+    indices_train_ones = indices_ones[n_ones_val:n_ones_train]
+
+    # defines indices of edges that will go into the test set
+    # these are not the indices of the test set!
+    test_set_edge_indices = arg_ones_values[indices_test_ones]
+    val_set_edge_indices = arg_ones_values[indices_val_ones]
+    train_set_edge_indices = arg_ones_values[indices_train_ones]
+
+    train = edges_indices[0][train_set_edge_indices], edges_indices[1][train_set_edge_indices]
+    train_ones_indices = edges_indices[0][arg_ones_values[indices_train_ones]], edges_indices[1][
+        arg_ones_values[indices_train_ones]]
+
+    val = edges_indices[0][val_set_edge_indices], edges_indices[1][val_set_edge_indices]
+
+    test = edges_indices[0][test_set_edge_indices], edges_indices[1][test_set_edge_indices]
+
+    return train_ones_indices, indices_from_2d_to_1d(train, A.shape[0]), indices_from_2d_to_1d(val, A.shape[
+        0]), indices_from_2d_to_1d(test, A.shape[0])
+
+
+def dvne_loss(gt, pred):
+    expected = (gt * (gt - pred)) ** 2
+    expected = expected[torch.where(expected > 0)]
+    return expected.mean()

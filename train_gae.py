@@ -22,10 +22,9 @@ torch.random.manual_seed(seed // 3)
 random.seed(seed // 3)
 np.random.seed(seed // 3)
 
-
 print(torch.cuda.is_available())
 
-dataset_name = 'pubmed'
+dataset_name = 'cora'
 A, X, Y = load_graph(dataset_name)
 
 # plt.matshow(A)
@@ -69,8 +68,8 @@ A_model = A_model.type(torch.float32)
 # plt.matshow(A_model.numpy())
 # plt.show()
 
-model = GCNAutoencoder(n_features=feat_size, hidden_dim=32, code_dim=16, A=A_model)
-# model = GcnVAE(n_features=feat_size, n_samples=A.shape[0], hidden_dim=32, code_dim=16, A=A_model)
+# model = GCNAutoencoder(n_features=feat_size, hidden_dim=32, code_dim=16, A=A_model)
+model = GcnVAE(n_features=feat_size, n_samples=A.shape[0], hidden_dim=32, code_dim=16, A=A_model)
 model.to(device)
 
 opt = torch.optim.Adam(lr=0.01, params=model.parameters())
@@ -105,7 +104,6 @@ for e in range(n_epochs):
     loss.backward()
     opt.step()
 
-
     t1 = time.time()
     if (e + 1) % 10 == 0:
         val_auc = u.test_auc_gae(model, X, A, val)
@@ -124,9 +122,9 @@ print("Test auc {}: ", test_auc)
 if dataset_name == 'cora':
     with torch.no_grad():
         encoded, _, _ = model.encode(X)
-        dv.reduct_and_visualize(encoded.cpu().numpy(), Y.argmax(axis=1))
+    #     dv.reduct_and_visualize(encoded.cpu().numpy(), Y.argmax(axis=1))
 
-    train, val_test = next(Split(train_size=140, random_state=seed).split(encoded, Y))
+    # train, val_test = next(Split(train_size=140, random_state=seed).split(encoded, Y))
 
     # encoded = encoded.cpu()
     # x_train, y_train = encoded[train], Y[train]
