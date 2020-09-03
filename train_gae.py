@@ -25,7 +25,7 @@ np.random.seed(seed // 3)
 
 print(torch.cuda.is_available())
 
-dataset_name = 'pubmed'
+dataset_name = 'cora'
 A, X, Y = load_graph(dataset_name)
 
 # plt.matshow(A)

@@ -2,20 +2,22 @@ import torch
 import torch.nn as nn
 import math
 import utils as u
-
+from torch.nn import init
 
 class KipfAndWillingConv(nn.Module):
     def __init__(self, n_features, n_filters):
         super().__init__()
 
         self.filters = torch.nn.Parameter(torch.Tensor(n_features, n_filters), requires_grad=True)
-        stdv = 1. / math.sqrt(self.filters.size(1))
-        self.filters.data.uniform_(-stdv, stdv)
+        self.reset_parameters()
 
     def forward(self, x, transform):
         XF = torch.mm(x, self.filters)
         out = torch.sparse.mm(transform, XF)
         return out
+
+    def reset_parameters(self):
+        init.xavier_normal_(self.filters, math.sqrt(2))
 
     @staticmethod
     def compute_transform(A):
