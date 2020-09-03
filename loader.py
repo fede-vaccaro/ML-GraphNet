@@ -4,7 +4,7 @@ import os
 
 
 def load_graph(dataset_name):
-    if dataset_name == 'cora' or dataset_name == 'citeseer' or dataset_name == 'facebook':
+    if dataset_name == 'cora' or dataset_name == 'citeseer' or dataset_name == 'facebook' or dataset_name == 'pubmed':
         dataset_filename = 'datasets/' + dataset_name + "/{}.h5".format(dataset_name)
 
         # if os.path.exists(dataset_filename):
@@ -24,7 +24,8 @@ def load_graph(dataset_name):
             print("Bulding dataset '{}'".format(dataset_name))
             if dataset_name != 'facebook':
                 cites_txt = open('datasets/{}/{}.cites'.format(dataset_name, dataset_name), 'r')
-                content_txt = open('datasets/{}/{}.content'.format(dataset_name, dataset_name), 'r')
+                if dataset_name != 'pubmed':
+                    content_txt = open('datasets/{}/{}.content'.format(dataset_name, dataset_name), 'r')
             else:
                 cites_txt = open('datasets/{}/{}.txt'.format(dataset_name, dataset_name), 'r')
 
@@ -60,7 +61,7 @@ def load_graph(dataset_name):
 
             # makes matrix A
             dim = len(all_ids)
-            A = np.zeros((dim, dim)).astype('int32')
+            A = np.zeros((dim, dim)).astype('int16')
 
             for edge in edge_ids:
                 ii = edge[0]
@@ -78,7 +79,7 @@ def load_graph(dataset_name):
             # idx = i + j*n_col
             print("max: ", np.max(A))
 
-            if dataset_name == 'facebook':
+            if dataset_name == 'facebook' or dataset_name == 'pubmed':
                 X = np.eye(A.shape[0])
                 L = np.eye(A.shape[0])
                 return A, X, L

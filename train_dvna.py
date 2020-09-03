@@ -12,6 +12,8 @@ import random
 # https://arxiv.org/pdf/1609.02907.pdf
 # and "Variational Graph Auto-Encoders" - Kipf & Willing 2016
 # https://arxiv.org/pdf/1611.07308.pdf
+from sklearn.svm import SVC
+from sklearn.metrics import accuracy_score
 
 seed = (2 ** 31 - 53423)
 torch.random.manual_seed(seed // 3)
@@ -168,7 +170,7 @@ for e in range(n_epochs):
     opt.step()
 
     t1 = time.time()
-    if (e + 1) % 10 == 0:
+    if (e + 1) % 100 == 0:
         if len(val) > 0:
             with torch.no_grad():
                 val_loss = float(criterion((model.forward(A_model)[0]).reshape(-1)[val], A.reshape(-1)[val].data))
@@ -188,6 +190,19 @@ print("Test auc {}: ", test_auc)
 if dataset_name == 'cora':
     with torch.no_grad():
         encodings, mean, std = model.encode(P.to(device))
-        embeddings = torch.cat([mean, std], dim=1)
+        embeddings = torch.cat([mean.pow(2.0), std.pow(2.0)], dim=1)
 
-        dv.reduct_and_visualize(encodings.cpu().numpy(), Y.argmax(axis=1))
+        dv.reduct_and_visualize(embeddings.cpu().numpy(), Y.argmax(axis=1))
+
+
+    # train, val_test = next(Split(train_size=140, random_state=seed).split(encodings, Y))
+    #
+    # encodings = encodings.cpu()
+    # x_train, y_train = encodings[train], Y[train]
+    # x_test, y_test = encodings[val_test], Y[val_test]
+    #
+    # svm = SVC(C=10.0)
+    #
+    # svm.fit(x_train, y_train.argmax(axis=1))
+    # y_predicted = svm.predict(x_test)
+    # print("Accuracy: ", accuracy_score(y_predicted, y_test.argmax(axis=1)))

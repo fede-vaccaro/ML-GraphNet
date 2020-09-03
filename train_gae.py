@@ -9,6 +9,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import data_visualization as dv
 import random
+from sklearn.svm import SVC
+from sklearn.metrics import accuracy_score
 
 # implementation of SEMI-SUPERVISED CLASSIFICATION WITH GRAPH CONVOLUTIONAL NETWORKS - Kipf & Willing 2017
 # https://arxiv.org/pdf/1609.02907.pdf
@@ -23,8 +25,8 @@ np.random.seed(seed // 3)
 
 print(torch.cuda.is_available())
 
-dataset_name = 'cora'
-A, X, Y = load_graph('cora')
+dataset_name = 'pubmed'
+A, X, Y = load_graph(dataset_name)
 
 # plt.matshow(A)
 # plt.show()
@@ -123,3 +125,15 @@ if dataset_name == 'cora':
     with torch.no_grad():
         encoded, _, _ = model.encode(X)
         dv.reduct_and_visualize(encoded.cpu().numpy(), Y.argmax(axis=1))
+
+    train, val_test = next(Split(train_size=140, random_state=seed).split(encoded, Y))
+
+    # encoded = encoded.cpu()
+    # x_train, y_train = encoded[train], Y[train]
+    # x_test, y_test = encoded[val_test], Y[val_test]
+    #
+    # svm = SVC(C=10.0)
+    #
+    # svm.fit(x_train, y_train.argmax(axis=1))
+    # y_predicted = svm.predict(x_test)
+    # print("Accuracy: ", accuracy_score(y_predicted, y_test.argmax(axis=1)))
