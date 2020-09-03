@@ -1,3 +1,5 @@
+import argparse
+
 from loader import load_graph
 from sklearn.model_selection import StratifiedShuffleSplit as Split
 import torch.nn.functional as F
@@ -22,20 +24,41 @@ torch.random.manual_seed(seed // 3)
 random.seed(seed // 3)
 np.random.seed(seed // 3)
 
+ap = argparse.ArgumentParser()
 
-print(torch.cuda.is_available())
+ap.add_argument("-d", "--dataset", type=str, default="cora",
+                help="Choice one between 'cora', 'citeseer', 'facebook', 'pubmed'")
+ap.add_argument("-m", "--method", type=str, default='vgae',
+                help="Graph AutoEncoder (gae) or Variational Graph AutoEncoder (vgae)")
+ap.add_argument("-v", "--visualize", action='store_true',
+                help="Visualize embeddings (only available for 'cora' dataset)")
+ap.add_argument("-dv", "--device", type=str, default='cpu',
+                help="Select between 'gpu' or 'cpu'. If cuda is not available, it will run on CPU by default.")
+ap.add_argument("-f", "--features", action='store_true', default=False,
+                help="Use node features (only available for 'cora' dataset)")
 
-dataset_name = 'cora'
+args = vars(ap.parse_args())
+
+dataset = args['dataset']
+method = args['method']
+visualize = args['visualize']
+device_ = args['device']
+use_features = args['features']
+
+
+dataset_name = dataset
 A, X, Y = load_graph(dataset_name)
-
-# plt.matshow(A)
-# plt.show()
 
 A = torch.tensor(A.astype('float32'))
 
 # don't use features
-# X = torch.eye(A.shape[0]).type(torch.float32)
-X = torch.tensor(X.astype('float32'))
+if use_features:
+    assert dataset_name == 'cora', "Node features available just for 'cora' dataset"
+    print("Using features")
+    X = torch.tensor(X.astype('float32'))
+else:
+    X = torch.eye(A.shape[0]).type(torch.float32)
+
 
 n_epochs = 400
 n_splits = 10
@@ -43,7 +66,13 @@ n_splits = 10
 feat_size = X.shape[1]
 n_classes = Y.shape[1]
 
-device = torch.device("cuda")
+cuda_is_available = torch.cuda.is_available()
+print("Cuda: ", cuda_is_available)
+
+if cuda_is_available and device_ == 'gpu':
+    device = torch.device("cuda")
+else:
+    device = torch.device("cpu")
 
 # criterion = F.binary_cross_entropy
 criterion = F.binary_cross_entropy_with_logits
@@ -69,10 +98,16 @@ A_model = A_model.type(torch.float32)
 # plt.matshow(A_model.numpy())
 # plt.show()
 
-model = GCNAutoencoder(n_features=feat_size, hidden_dim=32, code_dim=16, A=A_model)
-# model = GcnVAE(n_features=feat_size, n_samples=A.shape[0], hidden_dim=32, code_dim=16, A=A_model)
-model.to(device)
+if method == 'gae':
+    model = GCNAutoencoder(n_features=feat_size, hidden_dim=32, code_dim=16, A=A_model)
+elif method == 'vgae':
+    model = GcnVAE(n_features=feat_size, n_samples=A.shape[0], hidden_dim=32, code_dim=16, A=A_model)
+else:
+    raise ValueError("Method {} not available!".format(method))
 
+print("Using method: ", method)
+
+model.to(device)
 opt = torch.optim.Adam(lr=0.01, params=model.parameters())
 
 lambda_reg = 5e-4
@@ -119,9 +154,9 @@ for e in range(n_epochs):
                                                                                                          t1 - t0))
 
 test_auc = u.test_auc_gae(model, X, A, test, test=True)
-print("Test auc {}: ", test_auc)
+print("Test auc: ", test_auc)
 
-if dataset_name == 'cora':
+if dataset_name == 'cora' and visualize:
     with torch.no_grad():
         encoded, _, _ = model.encode(X)
         dv.reduct_and_visualize(encoded.cpu().numpy(), Y.argmax(axis=1))

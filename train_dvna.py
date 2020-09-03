@@ -8,19 +8,42 @@ import time
 import numpy as np
 import data_visualization as dv
 import random
+import argparse
+
 # implementation of SEMI-SUPERVISED CLASSIFICATION WITH GRAPH CONVOLUTIONAL NETWORKS - Kipf & Willing 2017
 # https://arxiv.org/pdf/1609.02907.pdf
-# and "Variational Graph Auto-Encoders" - Kipf & Willing 2016
-# https://arxiv.org/pdf/1611.07308.pdf
+
 from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score
+
+ap = argparse.ArgumentParser()
+
+ap.add_argument("-d", "--dataset", type=str, default="cora",
+                help="Choice one between 'cora', 'citeseer', 'facebook', 'pubmed'")
+ap.add_argument("-v", "--visualize", action='store_true',
+                help="For rendering embeddings (only available for 'cora' dataset)")
+ap.add_argument("-dv", "--device", type=str, default='gpu',
+                help="Visualize embeddings (just for 'cora' dataset)")
+
+args = vars(ap.parse_args())
+
+dataset = args['dataset']
+visualize = args['visualize']
+device_ = args['device']
+
 
 seed = (2 ** 31 - 53423)
 torch.random.manual_seed(seed // 3)
 random.seed(seed // 3)
 np.random.seed(seed // 3)
 
-print(torch.cuda.is_available())
+cuda_is_available = torch.cuda.is_available()
+print("Cuda: ", cuda_is_available)
+
+if cuda_is_available and device_ == 'gpu':
+    device = torch.device("cuda")
+else:
+    device = torch.device("cpu")
 
 dataset_name = 'cora'
 A, X, Y = load_graph(dataset_name)
@@ -32,8 +55,7 @@ A, X, Y = load_graph(dataset_name)
 # X = normalize(X.astype('float32'), 'l1')
 
 A = torch.tensor(A.astype('float32'))
-# X = torch.eye(A.shape[0]).type(torch.float32)
-X = torch.tensor(X.astype('float32'))
+X = torch.eye(A.shape[0]).type(torch.float32)
 
 D_inv = A.sum(dim=1).pow(-1)
 P = torch.diag(D_inv).matmul(A)
@@ -43,8 +65,6 @@ n_splits = 10
 
 feat_size = X.shape[1]
 n_classes = Y.shape[1]
-
-device = torch.device("cuda")
 
 def dvne_loss(gt, pred):
         expected = (gt*(gt - pred)) ** 2
@@ -179,15 +199,15 @@ for e in range(n_epochs):
             val_auc = np.nan
             val_loss = np.nan
         print(
-            "Epoch: {0}; train loss: {1:.4f}; val loss: {2:.4f}; val auc: {3:.4f}; time: {4:.4f}".format(e + 1, loss,
+            "Iteration: {0}; train loss: {1:.4f}; val loss: {2:.4f}; val auc: {3:.4f}; time: {4:.4f}".format(e + 1, loss,
                                                                                                          val_loss,
                                                                                                          val_auc,
                                                                                                          t1 - t0))
 
 test_auc = u.test_auc_dvna(model, A_model, A, idx=test, test=True)
-print("Test auc {}: ", test_auc)
+print("Test auc: ", test_auc)
 
-if dataset_name == 'cora':
+if dataset_name == 'cora' and visualize:
     with torch.no_grad():
         encodings, mean, std = model.encode(P.to(device))
         embeddings = torch.cat([mean.pow(2.0), std.pow(2.0)], dim=1)

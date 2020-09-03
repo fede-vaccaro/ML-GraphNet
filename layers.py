@@ -17,7 +17,7 @@ class KipfAndWillingConv(nn.Module):
         return out
 
     def reset_parameters(self):
-        init.xavier_normal_(self.filters, math.sqrt(2))
+        init.xavier_normal_(self.filters, 1.0)
 
     @staticmethod
     def compute_transform(A):
