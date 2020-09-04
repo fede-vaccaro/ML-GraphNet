@@ -4,6 +4,18 @@ import math
 import utils as u
 from torch.nn import init
 
+
+def dvne_loss(gt, pred):
+    expected = (gt * (gt - pred)) ** 2
+    expected = expected[torch.where(expected > 0)]
+    return expected.mean()
+
+
+def energy_loss(w_ij, w_ik):
+    energy = w_ij.pow(2.0) + torch.exp(-w_ik)
+    return energy.mean()
+
+
 class KipfAndWillingConv(nn.Module):
     def __init__(self, n_features, n_filters):
         super().__init__()

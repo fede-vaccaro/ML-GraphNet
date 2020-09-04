@@ -4,6 +4,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import random
 from torch import nn as nn
+seed = (2 ** 31 - 53423)
+np.random.seed(seed // 3)
 
 
 # plt.switch_backend('TkAgg') #TkAgg (instead Qt4Agg)
@@ -64,7 +66,6 @@ def test_auc_gae(model, X, A, idx, test=False):
 
     fn = torch.sigmoid
     a_cap, _, _ = model.encode(X)
-    # a_cap = model.encode(X)
 
     a_cap = a_cap / a_cap.norm(p=2, dim=0)
     a_cap = a_cap @ a_cap.t()
@@ -139,6 +140,27 @@ def indices_from_2d_to_1d(indices_list, side):
     indices = all_indices[indices_list].reshape(-1)
     return indices
 
+def prepare_train_matrix_dvne(A, indices_ones):
+    A_train = np.zeros(A.shape).astype('float32')
+    A_train[indices_ones] = 1
+    A_train += A_train.T
+    A_train_d_inv = 1 / A_train.sum(axis=1)
+    A_train_d_inv[A_train_d_inv == np.inf] = 0
+    A_train_d_inv = np.diag(A_train_d_inv)
+    A_train = A_train.dot(A_train_d_inv)
+    A_train = torch.from_numpy(A_train)
+    A_train = A_train.type(torch.float32)
+    return A_train
+
+
+def prepare_train_matrix_gae(A, indices_one):
+    A_train = np.zeros(A.shape).astype('float32')
+    A_train[indices_one] = 1
+    A_train += A_train.T
+    np.fill_diagonal(A_train, 1)
+    A_train = torch.from_numpy(A_train)
+    A_train = A_train.type(torch.float32)
+    return A_train
 
 def split_dataset(A, seed):
     A_integer = A.cpu().numpy().astype('int32')
@@ -151,6 +173,7 @@ def split_dataset(A, seed):
 
     values = A_integer[edges_indices]
 
+    # argwhere is not deterministic as it runs more likely on multiple threads
     arg_ones_values = np.argwhere(values > 0)
     arg_zero_values = np.argwhere(values == 0)
 

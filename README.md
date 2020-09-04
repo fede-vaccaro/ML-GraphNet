@@ -32,7 +32,7 @@ e.g.: `$ python train_gae.py -m vgae -d citeseer -d gpu`
 *   -m / --method METHOD: 'gae', or 'vgae', Graph AutoEncoder or Variational Graph AutoEncoder 
 *   -v / --visualize VISUALIZE: false if omitted, true otherwise: for rendering embeddings (only available for 'cora' dataset)
 *   -dv / --device DEVICE: 'gpu' or 'cpu'. If cuda is not available, it will run on CPU by default. 
-*   -f / --features FEATURES: false if omitted, true otherwise: use node features (only available for 'cora' dataset)
+*   -f / --features FEATURES: false if omitted, true otherwise: use node features (only available for 'cora' and 'citeseer' datasets)
 ---
 ##### For running the code (DVNE):
 ```
@@ -49,12 +49,12 @@ e.g.: `$ python train_gae.py -d cora -dv gpu`
 
 |                  |   Cora    |   Citeseer    |   Facebook    |   PubMed  |
 |------------------|-----------|---------------|---------------|-----------|
-|     **GAE***     |    89.5   |       -       |      -        |           |
-|     **VGAE***    |    90.4   |       -       |      -        |           |
-|     **GAE**      |    86.3   |    76.0       |     98.9      |           |
-|     **VGAE**     |    84.4   |    78.8       |     97.7      |   78.8    |
-|     **DVNE**     |    91.3   |    87.3       |     98.7      |           |    
+|     **GAE***     |    88.8   |   84.6        |      -        |    -      |
+|     **VGAE***    |    90.1   |   85.6        |      -        |    -      |
+|     **GAE**      |    85.2   |   79.9        |           |   85.5    |
+|     **VGAE**     |    84.1   |   77.7        |           |   81.3    |
+|     **DVNE**     |    90.7   |           |           |   85.7    |    
 
-_* methods using node features_
+_* results using node features when available_
 
 ---
