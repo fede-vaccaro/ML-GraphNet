@@ -30,9 +30,10 @@ e.g.: `$ python train_gae.py -m vgae -d citeseer -d gpu`
 ##### Options: 
 *   -d / --dataset DATASET: one between 'cora', 'citeseer', 'facebook', 'pubmed' 
 *   -m / --method METHOD: 'gae', or 'vgae', Graph AutoEncoder or Variational Graph AutoEncoder 
-*   -v / --visualize VISUALIZE: false if omitted, true otherwise: for rendering embeddings (only available for 'cora' dataset)
+*   -v / --visualize : false if omitted, true otherwise: for rendering embeddings (only available for 'cora' dataset)
 *   -dv / --device DEVICE: 'gpu' or 'cpu'. If cuda is not available, it will run on CPU by default. 
-*   -f / --features FEATURES: false if omitted, true otherwise: use node features (only available for 'cora' and 'citeseer' datasets)
+*   -f / --features : false if omitted, true otherwise: use node features (only available for 'cora' and 'citeseer' datasets)
+*   -k / --kcross : false if omitted, true otherwise: run 10 training to compute cross validation on different splits.
 ---
 ##### For running the code (DVNE):
 ```
@@ -44,6 +45,7 @@ e.g.: `$ python train_gae.py -d cora -dv gpu`
 *   -d / --dataset DATASET: one between 'cora', 'citeseer', 'facebook', 'pubmed' 
 *   -v / --visualize VISUALIZE: false if omitted, true otherwise: for rendering embeddings (only available for 'cora' dataset)
 *   -dv / --device DEVICE: 'gpu' or 'cpu'. If cuda is not available, it will run on CPU by default. 
+*   -k / --kcross : false if omitted, true otherwise: run 10 training to compute cross validation on different splits.
 ---
 ### Experimental results (AUC %):
 
