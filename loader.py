@@ -1,7 +1,7 @@
 import numpy as np
 import h5py
 import os
-
+from scipy.sparse import load_npz
 
 def load_graph(dataset_name):
     if dataset_name == 'cora' or dataset_name == 'citeseer' or dataset_name == 'facebook' or dataset_name == 'pubmed':
@@ -79,10 +79,14 @@ def load_graph(dataset_name):
             # idx = i + j*n_col
             print("max: ", np.max(A))
 
-            if dataset_name == 'facebook' or dataset_name == 'pubmed':
+            if dataset_name == 'facebook':
                 X = np.eye(A.shape[0])
                 L = np.eye(A.shape[0])
                 return A, X, L
+            elif dataset_name == 'pubmed':
+                X_path = "datasets/pubmed/pubmed_features.npz"
+                mat = load_npz(X_path)
+                return A, mat.toarray(), None
 
             # convert content into features and labels
             features = {}

@@ -64,6 +64,19 @@ class DVNE(nn.Module):
 
         return dist_m + dist_std
 
+    def kl(self, n_a, n_b):
+        m_a, std_a = n_a
+        m_b, std_b = n_b
+
+        n_sa = std_a.pow(2.0).sum(dim=1)
+        n_sb = std_b.pow(2.0).sum(dim=1)
+
+        tr_stda_std_b_inv = std_a*std_b.pow(-1)
+        tr_stda_std_b_inv = tr_stda_std_b_inv.sum(dim=1)
+
+        kl = torch.log(n_sa / n_sb) - std_a.shape[1] + tr_stda_std_b_inv + (std_b * (m_b - m_a))@(m_b - m_a).t()
+        return 0.5*kl.mean()
+
     def encode(self, x):
         hidden = F.relu(self.hidden(x))
 

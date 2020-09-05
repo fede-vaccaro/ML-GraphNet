@@ -34,7 +34,7 @@ visualize = args['visualize']
 device_ = args['device']
 kcross = args['kcross']
 
-if kcross:
+if not kcross:
     torch.random.manual_seed(seed // 3)
     random.seed(seed // 3)
     np.random.seed(seed // 3)
@@ -129,14 +129,14 @@ def train_dvna(A, verbose=False):
 
         loss_weight = 0.6
         # loss = criterion(out_reconstruction, gt_reconsturction, weight=weights) * loss_weight/ loss_norm
-        loss = criterion(gt, out_reconstruction) * loss_weight
+        l2 = criterion(gt, out_reconstruction) * loss_weight
 
         # loss = 0.0
-        if isinstance(model, DVNE):
-            w_ij = model.wasserstein((mi, stdi), (mj, stdj))
-            w_ik = model.wasserstein((mi, stdi), (mk, stdk))
-            t = l.energy_loss(w_ij, w_ik)
-            loss += t
+        w_ij = model.wasserstein((mi, stdi), (mj, stdj))
+        w_ik = model.wasserstein((mi, stdi), (mk, stdk))
+        l1 = l.energy_loss(w_ij, w_ik)
+
+        loss = l1 + loss_weight*l2
 
         loss.backward()
         opt.step()
@@ -165,9 +165,9 @@ def train_dvna(A, verbose=False):
     if dataset_name == 'cora' and visualize:
         with torch.no_grad():
             encodings, mean, std = model.encode(P.to(device))
-            embeddings = torch.cat([mean.pow(2.0), std.pow(2.0)], dim=1)
+            embeddings = torch.cat([mean, std], dim=1)
 
-            dv.reduct_and_visualize(encodings.cpu().numpy(), Y.argmax(axis=1))
+            dv.reduct_and_visualize(embeddings.cpu().numpy(), Y.argmax(axis=1))
 
             # train, val_test = next(Split(train_size=140, random_state=seed).split(encodings, Y))
             #
@@ -188,6 +188,7 @@ if kcross:
     for i in range(10):
         print("Training model {}/10".format(i + 1))
         auc = train_dvna(A, False)
+        print("Auc {}: ".format(i+1), auc)
         aucs += [auc]
     print("avg AUC over 10 folds: ", np.asarray(aucs).mean())
     print("AUC std over 10 folds: ", np.asarray(aucs).std())

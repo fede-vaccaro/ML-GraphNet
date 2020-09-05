@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import random
 from torch import nn as nn
 
-# seed = (2 ** 31 - 53423)
+seed = (2 ** 31 - 53423)
 # np.random.seed(seed // 3)
 
 
@@ -197,7 +197,7 @@ def split_dataset(A, seed):
     n_zeros_train = (len(arg_zero_values)).__int__()
 
     indices_test_ones = indices_ones[:n_ones_test]
-    indices_test_zeros = indices_zeros[:n_zeros_test]
+    indices_test_zeros = indices_zeros[:n_ones_test]
 
     indices_val_ones = indices_ones[n_ones_test:n_ones_val]
     indices_val_zeros = indices_zeros[n_zeros_test:n_zeros_val]

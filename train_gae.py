@@ -13,16 +13,13 @@ import data_visualization as dv
 import random
 from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score
+from utils import seed
 
 # implementation of SEMI-SUPERVISED CLASSIFICATION WITH GRAPH CONVOLUTIONAL NETWORKS - Kipf & Willing 2017
 # https://arxiv.org/pdf/1609.02907.pdf
 # and "Variational Graph Auto-Encoders" - Kipf & Willing 2016
 # https://arxiv.org/pdf/1611.07308.pdf
 
-seed = (2 ** 31 - 53423)
-torch.random.manual_seed(seed // 3)
-random.seed(seed // 3)
-np.random.seed(seed // 3)
 
 ap = argparse.ArgumentParser()
 
@@ -48,13 +45,19 @@ device_ = args['device']
 use_features = args['features']
 kcross = args['kcross']
 
+if not kcross:
+    torch.random.manual_seed(seed // 3)
+    random.seed(seed // 3)
+    np.random.seed(seed // 3)
+
+
 dataset_name = dataset
 A, X, Y = load_graph(dataset_name)
 
 A = torch.tensor(A.astype('float32'))
 
 if use_features:
-    assert dataset_name == 'cora' or dataset_name == 'citeseer', "Node features available just for 'cora' dataset"
+    assert dataset_name != 'facebook', "Node features not available for 'facebook' dataset"
     print("Using features")
     X = torch.tensor(X.astype('float32'))
 else:
@@ -67,8 +70,8 @@ n_splits = 10
 feat_size = X.shape[1] if X is not None else A.shape[0]
 
 cuda_is_available = torch.cuda.is_available()
-print("Cuda: ", cuda_is_available)
 
+print("Cuda: ", cuda_is_available)
 if cuda_is_available and device_ == 'gpu':
     device = torch.device("cuda")
 else:
@@ -163,7 +166,7 @@ if kcross:
     for i in range(10):
         print("Training model {}/10".format(i+1))
         auc = train_gae(A, X, False)
-        print("Auc {}: ".format(i), auc)
+        print("Auc {}: ".format(i+1), auc)
         aucs += [auc]
     print("avg AUC over 10 folds: ", np.asarray(aucs).mean())
     print("AUC std over 10 folds: ", np.asarray(aucs).std())
