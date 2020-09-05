@@ -37,7 +37,7 @@ class GCNAutoencoder(nn.Module):
 
 
 class DVNE(nn.Module):
-    def __init__(self, n_features, n_samples, hidden_dim=512, code_dim=128):
+    def __init__(self, n_features, hidden_dim=512, code_dim=128):
         super().__init__()
         self.hidden = nn.Linear(in_features=n_features, out_features=hidden_dim)
 
@@ -62,7 +62,20 @@ class DVNE(nn.Module):
         # same as
         # dist_std = (std_a - std_b).norm(p='fro', dim=1).pow(2.0)
 
-        return (dist_m + dist_std)
+        return dist_m + dist_std
+
+    def kl(self, n_a, n_b):
+        m_a, std_a = n_a
+        m_b, std_b = n_b
+
+        n_sa = std_a.pow(2.0).sum(dim=1)
+        n_sb = std_b.pow(2.0).sum(dim=1)
+
+        tr_stda_std_b_inv = std_a*std_b.pow(-1)
+        tr_stda_std_b_inv = tr_stda_std_b_inv.sum(dim=1)
+
+        kl = torch.log(n_sa / n_sb) - std_a.shape[1] + tr_stda_std_b_inv + (std_b * (m_b - m_a))@(m_b - m_a).t()
+        return 0.5*kl.mean()
 
     def encode(self, x):
         hidden = F.relu(self.hidden(x))
