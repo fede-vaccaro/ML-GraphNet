@@ -4,8 +4,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import random
 from torch import nn as nn
-seed = (2 ** 31 - 53423)
-np.random.seed(seed // 3)
+
+# seed = (2 ** 31 - 53423)
+# np.random.seed(seed // 3)
 
 
 # plt.switch_backend('TkAgg') #TkAgg (instead Qt4Agg)
@@ -174,8 +175,8 @@ def split_dataset(A, seed):
     values = A_integer[edges_indices]
 
     # argwhere is not deterministic as it runs more likely on multiple threads
-    arg_ones_values = np.argwhere(values > 0)
-    arg_zero_values = np.argwhere(values == 0)
+    arg_ones_values = np.sort(np.argwhere(values > 0), axis=0)
+    arg_zero_values = np.sort(np.argwhere(values == 0), axis=0)
 
     indices_ones = np.random.permutation(len(arg_ones_values))
     indices_zeros = np.random.permutation(len(arg_zero_values))

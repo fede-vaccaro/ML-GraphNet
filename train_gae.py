@@ -163,7 +163,7 @@ if kcross:
     for i in range(10):
         print("Training model {}/10".format(i+1))
         auc = train_gae(A, X, False)
-        print(auc)
+        print("Auc {}: ".format(i), auc)
         aucs += [auc]
     print("avg AUC over 10 folds: ", np.asarray(aucs).mean())
     print("AUC std over 10 folds: ", np.asarray(aucs).std())

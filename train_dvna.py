@@ -34,9 +34,10 @@ visualize = args['visualize']
 device_ = args['device']
 kcross = args['kcross']
 
-torch.random.manual_seed(seed // 3)
-random.seed(seed // 3)
-np.random.seed(seed // 3)
+if kcross:
+    torch.random.manual_seed(seed // 3)
+    random.seed(seed // 3)
+    np.random.seed(seed // 3)
 
 cuda_is_available = torch.cuda.is_available()
 print("Cuda: ", cuda_is_available)
