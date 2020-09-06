@@ -35,6 +35,31 @@ class GCNAutoencoder(nn.Module):
         super().to(device)
         self.transform = self.transform.to(device)
 
+class Autoencoder(nn.Module):
+    def __init__(self, n_features, hidden_dim=32, code_dim=16):
+        super().__init__()
+        self.hidden = nn.Linear(n_features, hidden_dim)
+        self.encoder = nn.Linear(hidden_dim, code_dim)
+
+
+    def forward(self, x):
+        encoded, _, _ = self.encode(x)
+        prediction = l.decode(encoded)
+        prediction = F.dropout(prediction, p=0.5, training=self.training)
+
+        return prediction
+
+    def encode(self, x):
+        hidden = self.hidden(x)
+        hidden = F.relu(hidden)
+        hidden = F.dropout(hidden, p=0.5, training=self.training)
+
+        encoded = self.encoder(hidden)
+        return encoded, None, None
+
+    def reg(self, lambda_reg=1e-5):
+        return self.encoder.filters.norm(p=2) * lambda_reg
+
 
 class DVNE(nn.Module):
     def __init__(self, n_features, hidden_dim=512, code_dim=128):

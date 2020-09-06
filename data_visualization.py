@@ -13,7 +13,7 @@ def reduct_and_visualize(data_subset, y):
     df['tsne-2d-two'] = tsne_results[:, 1]
     df['y'] = y
 
-    plt.figure(figsize=(16, 10))
+    plt.figure(figsize=(10, 10))
     sns.scatterplot(
         x="tsne-2d-one", y="tsne-2d-two",
         hue="y",

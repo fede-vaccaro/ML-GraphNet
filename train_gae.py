@@ -50,7 +50,6 @@ if not kcross:
     random.seed(seed // 3)
     np.random.seed(seed // 3)
 
-
 dataset_name = dataset
 A, X, Y = load_graph(dataset_name)
 
@@ -81,6 +80,7 @@ A += torch.eye(A.shape[0])
 
 print("Using method: ", method)
 
+
 def train_gae(A, X, verbose=True):
     indices_one, train, val, test = u.split_dataset(A, seed=seed)
 
@@ -90,9 +90,13 @@ def train_gae(A, X, verbose=True):
         model = GCNAutoencoder(n_features=feat_size, hidden_dim=64, code_dim=32, A=A_train)
     elif method == 'vgae':
         model = GcnVAE(n_features=feat_size, n_samples=A.shape[0], hidden_dim=64, code_dim=32, A=A_train)
+    elif method == 'ae':
+        model = Autoencoder(n_features=feat_size)
+        if not use_features:
+            X = A_train
+
     else:
         raise ValueError("Method {} not available!".format(method))
-
 
     model.to(device)
     opt = torch.optim.Adam(lr=0.01, params=model.parameters())
@@ -149,24 +153,25 @@ def train_gae(A, X, verbose=True):
             dv.reduct_and_visualize(encoded.cpu().numpy(), Y.argmax(axis=1))
 
         train, val_test = next(Split(train_size=140, random_state=seed).split(encoded, Y))
+        encoded = encoded.cpu()
+        x_train, y_train = encoded[train], Y[train]
+        x_test, y_test = encoded[val_test], Y[val_test]
+
+        svm = SVC(C=10.0)
+
+        svm.fit(x_train, y_train.argmax(axis=1))
+        y_predicted = svm.predict(x_test)
+        print("Accuracy: ", accuracy_score(y_predicted, y_test.argmax(axis=1)))
 
     return test_auc
-    # encoded = encoded.cpu()
-    # x_train, y_train = encoded[train], Y[train]
-    # x_test, y_test = encoded[val_test], Y[val_test]
-    #
-    # svm = SVC(C=10.0)
-    #
-    # svm.fit(x_train, y_train.argmax(axis=1))
-    # y_predicted = svm.predict(x_test)
-    # print("Accuracy: ", accuracy_score(y_predicted, y_test.argmax(axis=1)))
+
 
 if kcross:
     aucs = []
     for i in range(10):
-        print("Training model {}/10".format(i+1))
+        print("Training model {}/10".format(i + 1))
         auc = train_gae(A, X, False)
-        print("Auc {}: ".format(i+1), auc)
+        print("Auc {}: ".format(i + 1), auc)
         aucs += [auc]
     print("avg AUC over 10 folds: ", np.asarray(aucs).mean())
     print("AUC std over 10 folds: ", np.asarray(aucs).std())

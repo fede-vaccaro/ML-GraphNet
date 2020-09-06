@@ -169,17 +169,17 @@ def train_dvna(A, verbose=False):
 
             dv.reduct_and_visualize(embeddings.cpu().numpy(), Y.argmax(axis=1))
 
-            # train, val_test = next(Split(train_size=140, random_state=seed).split(encodings, Y))
-            #
-            # encodings = encodings.cpu()
-            # x_train, y_train = encodings[train], Y[train]
-            # x_test, y_test = encodings[val_test], Y[val_test]
-            #
-            # svm = SVC(C=10.0)
-            #
-            # svm.fit(x_train, y_train.argmax(axis=1))
-            # y_predicted = svm.predict(x_test)
-            # print("Accuracy: ", accuracy_score(y_predicted, y_test.argmax(axis=1)))
+            train, val_test = next(Split(train_size=140, random_state=seed).split(embeddings, Y))
+
+            embeddings = embeddings.cpu()
+            x_train, y_train = embeddings[train], Y[train]
+            x_test, y_test = embeddings[val_test], Y[val_test]
+
+            svm = SVC(C=10.0)
+
+            svm.fit(x_train, y_train.argmax(axis=1))
+            y_predicted = svm.predict(x_test)
+            print("SVM Accuracy: ", accuracy_score(y_predicted, y_test.argmax(axis=1)))
     return test_auc
 
 
