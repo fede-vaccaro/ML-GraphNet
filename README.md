@@ -29,7 +29,7 @@ e.g.: `$ python train_gae.py -m vgae -d citeseer -d gpu`
 
 ##### Options: 
 *   -d / --dataset DATASET: one between 'cora', 'citeseer', 'facebook', 'pubmed' 
-*   -m / --method METHOD: 'gae', or 'vgae', Graph AutoEncoder or Variational Graph AutoEncoder 
+*   -m / --method METHOD: a basic 'ae', 'gae', or 'vgae', Graph AutoEncoder or Variational Graph AutoEncoder 
 *   -v / --visualize : false if omitted, true otherwise: for rendering embeddings (only available for 'cora' dataset)
 *   -dv / --device DEVICE: 'gpu' or 'cpu'. If cuda is not available, it will run on CPU by default. 
 *   -f / --features : false if omitted, true otherwise: use node features (only available for 'cora' and 'citeseer' datasets)
@@ -57,7 +57,7 @@ e.g.: `$ python train_gae.py -d cora -dv gpu`
 |     **AE**       |    85.4   |   78.5        |     98.7      |           |
 |     **GAE**      |    85.9   |   78.3        |     99.0      |   85.5    |
 |     **VGAE**     |    84.6   |   77.0        |     98.7      |   81.9    |
-|     **DVNE**     |    90.8   |   86.8        |     98.7      |   86.0    |    
+|     **DVNE**     |    90.8   |   86.8        |     98.7      |   86.0    |
 
 _* results using node features when available_
 
