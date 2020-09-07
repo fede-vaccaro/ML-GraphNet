@@ -57,7 +57,7 @@ e.g.: `$ python train_gae.py -d cora -dv gpu`
 |     **AE**       |    85.4   |   78.5        |     98.7      |           |
 |     **GAE**      |    85.9   |   78.3        |     99.0      |   85.5    |
 |     **VGAE**     |    84.6   |   77.0        |     98.7      |   81.9    |
-|     **DVNE**     |    90.8   |   86.8        |     98.7      |   85.7    |    
+|     **DVNE**     |    90.8   |   86.8        |     98.7      |   86.0    |    
 
 _* results using node features when available_
 

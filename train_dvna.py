@@ -51,16 +51,16 @@ dataset_name = dataset
 A, X, Y = load_graph(dataset_name)
 
 
-A = torch.tensor(A.astype('float32'))
-D_inv = A.sum(dim=1).pow(-1)
-P = torch.diag(D_inv).matmul(A)
+D_inv = 1 / A.sum(axis=1).astype('float32')
+P = np.dot(np.diag(D_inv), A)
+
+A = torch.tensor(A)
+P = torch.tensor(P)
 
 feat_size = X.shape[1]
-n_classes = Y.shape[1]
 
-def train_dvna(A, verbose=False):
+def train_dvna(A, P, verbose=False):
     n_epochs = 4000
-    n_splits = 10
 
     train_ones_indices, train, val, test = u.split_dataset(A, seed=seed)
 
@@ -97,6 +97,7 @@ def train_dvna(A, verbose=False):
     zero_ratio = 1 - nonzero_ratio
 
     A = A.to(device)
+    P = P.to(device)
     A_train = A_train.to(device)
 
     model.n_samples = len(train)
@@ -187,11 +188,11 @@ if kcross:
     aucs = []
     for i in range(10):
         print("Training model {}/10".format(i + 1))
-        auc = train_dvna(A, False)
+        auc = train_dvna(A, P, False)
         print("Auc {}: ".format(i+1), auc)
         aucs += [auc]
     print("avg AUC over 10 folds: ", np.asarray(aucs).mean())
     print("AUC std over 10 folds: ", np.asarray(aucs).std())
 else:
-    auc = train_dvna(A, True)
+    auc = train_dvna(A, P, True)
     print("Test auc: ", auc)
