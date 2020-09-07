@@ -5,10 +5,11 @@ import utils as u
 from torch.nn import init
 
 
-def dvne_loss(gt, pred):
+def dvne_loss(gt, pred, sigmas):
     expected = (gt * (gt - pred)) ** 2
     expected = expected[torch.where(expected > 0)]
-    return expected.mean()
+    sigmas = sigmas.pow(2.0).sum(dim=1).mean()
+    return expected.mean() + sigmas
 
 
 def energy_loss(w_ij, w_ik):

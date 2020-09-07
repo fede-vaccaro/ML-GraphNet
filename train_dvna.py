@@ -60,7 +60,7 @@ P = torch.tensor(P)
 feat_size = X.shape[1]
 
 def train_dvna(A, P, verbose=False):
-    n_epochs = 4000
+    n_epochs = 10000
 
     train_ones_indices, train, val, test = u.split_dataset(A, seed=seed)
 
@@ -91,7 +91,7 @@ def train_dvna(A, P, verbose=False):
     model = DVNE(n_features=A.shape[0])
     model.to(device)
 
-    opt = torch.optim.Adam(lr=0.001, params=model.parameters())
+    opt = torch.optim.RMSprop(lr=0.001, params=model.parameters())
 
     nonzero_ratio = A.sum() / (A.shape[0] ** 2)
     zero_ratio = 1 - nonzero_ratio
@@ -130,7 +130,7 @@ def train_dvna(A, P, verbose=False):
 
         loss_weight = 0.6
         # loss = criterion(out_reconstruction, gt_reconsturction, weight=weights) * loss_weight/ loss_norm
-        l2 = criterion(gt, out_reconstruction) * loss_weight
+        l2 = criterion(gt, out_reconstruction, torch.cat([stdi, stdj, stdk], dim=0)) * loss_weight
 
         # loss = 0.0
         w_ij = model.wasserstein((mi, stdi), (mj, stdj))
@@ -144,11 +144,12 @@ def train_dvna(A, P, verbose=False):
 
         t1 = time.time()
         if verbose:
-            if (e + 1) % 100 == 0:
+            if (e + 1) % 10 == 0:
                 if len(val) > 0:
-                    with torch.no_grad():
-                        val_loss = float(
-                            criterion((model.forward(A_train)[0]).reshape(-1)[val], A.reshape(-1)[val].data))
+                    # with torch.no_grad():
+                    #     val_loss = float(
+                    #         criterion((model.forward(A_train)[0]).reshape(-1)[val], A.reshape(-1)[val].data))
+                    val_loss = 0
                     val_auc = u.test_auc_dvna(model, A_train, A, val)
                 else:
                     val_auc = np.nan
@@ -168,7 +169,7 @@ def train_dvna(A, P, verbose=False):
             encodings, mean, std = model.encode(P.to(device))
             embeddings = torch.cat([mean, std], dim=1)
 
-            dv.reduct_and_visualize(embeddings.cpu().numpy(), Y.argmax(axis=1))
+            dv.reduct_and_visualize(encodings.cpu().numpy(), Y.argmax(axis=1))
 
             train, val_test = next(Split(train_size=140, random_state=seed).split(embeddings, Y))
 
